@@ -1,0 +1,122 @@
+version: "2"
+
+##############################
+########## services ##########
+##############################
+services:
+###########################
+######### traefik #########
+###########################
+  traefik:
+    # The official v2 Traefik docker image
+    image: traefik:v2.6
+    container_name: traefik--2-6
+    restart: unless-stopped
+    depends_on:
+      - db
+    networks:
+      - nw-traefik
+    ports:
+      # The HTTP port
+      - "80:80"
+      # The HTTPS port
+      - "443:443"
+      # The Web UI (enabled by --api.insecure=true)
+      - "8008:8008"
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Traefik static configuration 
+      - $PWD/config/traefik/traefik.yml:/etc/traefik/traefik.yml
+      # Traefik ssl certs 
+      - $PWD/config/traefik/acme.json:/ssl-certs/acme.json
+
+############################
+########## whoami ##########
+############################
+  whoami:
+    # A container that exposes an API to show its IP address
+    image: traefik/whoami
+    container_name: whoami
+    restart: unless-stopped
+    depends_on:
+      - traefik
+    networks:
+      - nw-traefik
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.whoami.tls: "true"
+#      traefik.http.routers.whoami.tls.certresolver: "prod"
+      traefik.http.routers.whoami.rule: "Host(`whoami.${DOMAIN}`)"
+
+############################
+############ db ############
+############################
+  db:
+    image: mariadb
+    container_name: mariadb
+    restart: unless-stopped
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    networks:
+      - nw-traefik
+    volumes:
+      - $PWD/data/mariadb:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+
+###########################
+########## cloud ##########
+###########################
+  cloud-app:
+    image: nextcloud:latest
+    container_name: cloud-nextcloud
+    restart: unless-stopped
+    depends_on:
+      - traefik
+      - db
+    networks:
+      - nw-traefik
+    external_links:
+      - db
+    volumes:
+      - $PWD/data/cloud-nextcloud/html:/var/www/html
+      - $PWD/data/cloud-nextcloud/custom_apps:/var/www/html/custom_apps
+      - $PWD/data/cloud-nextcloud/config:/var/www/html/config
+      - $PWD/data/cloud-nextcloud/data:/var/www/html/data
+    environment:
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_HOST: db
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      NEXTCLOUD_TRUSTED_DOMAINS: cloud.${DOMAIN}
+#      APACHE_DISABLE_REWRITE_IP=1
+#      TRUSTED_PROXIES=127.0.0.1
+    labels:
+      traefik.enable: "true"
+      # routers
+      traefik.http.routers.cloud-app.tls: "true"
+#      traefik.http.routers.cloud-app.tls.certresolver: "prod"
+      traefik.http.routers.cloud-app.rule: "Host(`cloud.${DOMAIN}`)"
+      traefik.http.routers.cloud-app.middlewares: "cloud-app-headers,cloud-app-redirectregex"
+      # middleware headers
+      traefik.http.middlewares.cloud-app-headers.headers.customFrameOptionsValue: "ALLOW-FROM https://cloud.${DOMAIN}"
+      traefik.http.middlewares.cloud-app-headers.headers.contentSecurityPolicy: "frame-ancestors 'self' cloud.${DOMAIN}"
+      traefik.http.middlewares.cloud-app-headers.headers.stsSeconds: "155520011"
+      traefik.http.middlewares.cloud-app-headers.headers.stsIncludeSubdomains: "true"
+      traefik.http.middlewares.cloud-app-headers.headers.stsPreload: "true"
+      traefik.http.middlewares.cloud-app-headers.headers.customresponseheaders.X-Frame-Options: "SAMEORIGIN"
+      # middleware redirectregex
+      traefik.http.middlewares.cloud-app-redirectregex.redirectregex.permanent: "true"
+      traefik.http.middlewares.cloud-app-redirectregex.redirectregex.regex: "https://(.*)/.well-known/(card|cal)dav"
+      traefik.http.middlewares.cloud-app-redirectregex.redirectregex.replacement: "https://$${1}/remote.php/dav/"
+
+##############################
+########## networks ##########
+##############################
+networks:
+  nw-traefik:
