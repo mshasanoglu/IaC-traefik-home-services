@@ -24,11 +24,11 @@ global:
 entryPoints:
   web:
     address: :80
-    http:
-      redirections:
-        entryPoint:
-          to: websecure
-          scheme: https
+#    http:
+#      redirections:
+#        entryPoint:
+#          to: websecure
+#          scheme: https
 
   websecure:
     address: :443
@@ -162,7 +162,7 @@ providers:
     # Optional
     # Default: "Host(`{{ normalize .Name }}`)"
     #
-    defaultRule: Host(`{{ normalize .Name }}.docker.localhost`)
+#    defaultRule: Host(`{{ normalize .Name }}.docker.localhost`)
 
     # Expose containers by default in traefik
     #

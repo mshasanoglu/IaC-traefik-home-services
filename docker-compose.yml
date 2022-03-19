@@ -27,9 +27,9 @@ services:
       # So that Traefik can listen to the Docker events
       - /var/run/docker.sock:/var/run/docker.sock
       # Traefik static configuration 
-      - $PWD/config/traefik/traefik.yml:/etc/traefik/traefik.yml
+      - ./config/traefik/traefik.yml:/etc/traefik/traefik.yml
       # Traefik ssl certs 
-      - $PWD/config/traefik/acme.json:/ssl-certs/acme.json
+      - ./config/traefik/acme.json:/ssl-certs/acme.json
 
 ############################
 ########## whoami ##########
@@ -45,9 +45,11 @@ services:
       - nw-traefik
     labels:
       traefik.enable: "true"
-      traefik.http.routers.whoami.tls: "true"
+#      traefik.http.routers.whoami.tls: "true"
 #      traefik.http.routers.whoami.tls.certresolver: "prod"
       traefik.http.routers.whoami.rule: "Host(`whoami.${DOMAIN}`)"
+      
+
 
 ############################
 ############ db ############
@@ -60,12 +62,13 @@ services:
     networks:
       - nw-traefik
     volumes:
-      - $PWD/data/mariadb:/var/lib/mysql
+      - ./data/mariadb:/var/lib/mysql
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
+
 
 ###########################
 ########## cloud ##########
@@ -82,10 +85,10 @@ services:
     external_links:
       - db
     volumes:
-      - $PWD/data/cloud-nextcloud/html:/var/www/html
-      - $PWD/data/cloud-nextcloud/custom_apps:/var/www/html/custom_apps
-      - $PWD/data/cloud-nextcloud/config:/var/www/html/config
-      - $PWD/data/cloud-nextcloud/data:/var/www/html/data
+      - ./data/cloud-nextcloud/html:/var/www/html
+      - ./data/cloud-nextcloud/custom_apps:/var/www/html/custom_apps
+      - ./data/cloud-nextcloud/config:/var/www/html/config
+      - ./data/cloud-nextcloud/data:/var/www/html/data
     environment:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
@@ -99,7 +102,7 @@ services:
     labels:
       traefik.enable: "true"
       # routers
-      traefik.http.routers.cloud-app.tls: "true"
+#      traefik.http.routers.cloud-app.tls: "true"
 #      traefik.http.routers.cloud-app.tls.certresolver: "prod"
       traefik.http.routers.cloud-app.rule: "Host(`cloud.${DOMAIN}`)"
       traefik.http.routers.cloud-app.middlewares: "cloud-app-headers,cloud-app-redirectregex"
@@ -114,6 +117,38 @@ services:
       traefik.http.middlewares.cloud-app-redirectregex.redirectregex.permanent: "true"
       traefik.http.middlewares.cloud-app-redirectregex.redirectregex.regex: "https://(.*)/.well-known/(card|cal)dav"
       traefik.http.middlewares.cloud-app-redirectregex.redirectregex.replacement: "https://$${1}/remote.php/dav/"
+
+
+###########################
+########## pihole ##########
+###########################
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    restart: unless-stopped
+    depends_on:
+      - traefik
+    networks:
+      - nw-traefik
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "67:67/udp"
+    volumes:
+      - ./data/pihole/etc-pihole:/etc/pihole
+      - ./data/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
+    environment:
+      TZ: ${TZ}
+      VIRTUAL_HOST: pihole.${DOMAIN}
+      WEBPASSWORD: ${WEBPASSWORD}
+    cap_add:
+      - NET_ADMIN
+    labels:
+      traefik.enable: "true"
+#      traefik.http.routers.pihole.tls: "true"
+#      traefik.http.routers.pihole.tls.certresolver: "prod"
+      traefik.http.routers.pihole.rule: "Host(`pihole.${DOMAIN}`)"
+      traefik.http.services.pihole.loadbalancer.server.port: 80
 
 ##############################
 ########## networks ##########
