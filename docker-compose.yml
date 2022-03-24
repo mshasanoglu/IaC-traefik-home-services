@@ -62,7 +62,7 @@ services:
     networks:
       - nw-traefik
     volumes:
-      - ./data/mariadb:/var/lib/mysql
+      - ./data/db:/var/lib/mysql
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_USER}
@@ -75,7 +75,7 @@ services:
 ###########################
   cloud-app:
     image: nextcloud:latest
-    container_name: cloud-nextcloud
+    container_name: nextcloud
     restart: unless-stopped
     depends_on:
       - traefik
@@ -85,10 +85,10 @@ services:
     external_links:
       - db
     volumes:
-      - ./data/cloud-nextcloud/html:/var/www/html
-      - ./data/cloud-nextcloud/custom_apps:/var/www/html/custom_apps
-      - ./data/cloud-nextcloud/config:/var/www/html/config
-      - ./data/cloud-nextcloud/data:/var/www/html/data
+      - ./data/cloud-app/html:/var/www/html
+      - ./data/cloud-app/custom_apps:/var/www/html/custom_apps
+      - ./data/cloud-app/config:/var/www/html/config
+      - ./data/cloud-app/data:/var/www/html/data
     environment:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
@@ -119,9 +119,9 @@ services:
       traefik.http.middlewares.cloud-app-redirectregex.redirectregex.replacement: "https://$${1}/remote.php/dav/"
 
 
-###########################
+############################
 ########## pihole ##########
-###########################
+############################
   pihole:
     image: pihole/pihole:latest
     container_name: pihole
@@ -149,6 +149,29 @@ services:
 #      traefik.http.routers.pihole.tls.certresolver: "prod"
       traefik.http.routers.pihole.rule: "Host(`pihole.${DOMAIN}`)"
       traefik.http.services.pihole.loadbalancer.server.port: 80
+
+############################
+###### home assistant ######
+############################
+  smarthome-app:
+    image: iobroker/iobroker
+    container_name: iobroker
+    hostname: smarthome-app
+    restart: unless-stopped
+    depends_on:
+      - traefik
+    networks:
+      - nw-traefik
+    volumes:
+      - ./data/smarthome-app:/opt/iobroker
+    environment:
+      TZ: ${TZ}
+    labels:
+      traefik.enable: "true"
+#      traefik.http.routers.smarthome-app.tls: "true"
+#      traefik.http.routers.smarthome-app.tls.certresolver: "prod"
+      traefik.http.routers.smarthome-app.rule: "Host(`home.${DOMAIN}`)"
+      traefik.http.services.smarthome-app.loadbalancer.server.port: 8081
 
 ##############################
 ########## networks ##########
