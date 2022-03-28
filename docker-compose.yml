@@ -1,4 +1,4 @@
-version: "2"
+version: "3.7"
 
 ##############################
 ########## services ##########
@@ -12,17 +12,15 @@ services:
     image: traefik:v2.6
     container_name: traefik--2-6
     restart: unless-stopped
-    depends_on:
-      - db
     networks:
       - nw-traefik
     ports:
       # The HTTP port
-      - "80:80"
+      - 80:80
       # The HTTPS port
-      - "443:443"
+      - 443:443
       # The Web UI (enabled by --api.insecure=true)
-      - "8008:8008"
+      - 8008:8008
     volumes:
       # So that Traefik can listen to the Docker events
       - /var/run/docker.sock:/var/run/docker.sock
@@ -59,6 +57,8 @@ services:
     container_name: mariadb
     restart: unless-stopped
     command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    depends_on:
+      - traefik
     networks:
       - nw-traefik
     volumes:
@@ -82,7 +82,7 @@ services:
       - db
     networks:
       - nw-traefik
-    external_links:
+    links:
       - db
     volumes:
       - ./data/cloud-app/html:/var/www/html
@@ -97,12 +97,12 @@ services:
       NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
       NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
       NEXTCLOUD_TRUSTED_DOMAINS: cloud.${DOMAIN}
-#      APACHE_DISABLE_REWRITE_IP=1
-#      TRUSTED_PROXIES=127.0.0.1
+      APACHE_DISABLE_REWRITE_IP: 1
+      TRUSTED_PROXIES: 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 
     labels:
       traefik.enable: "true"
       # routers
-#      traefik.http.routers.cloud-app.tls: "true"
+      traefik.http.routers.cloud-app.tls: "true"
 #      traefik.http.routers.cloud-app.tls.certresolver: "prod"
       traefik.http.routers.cloud-app.rule: "Host(`cloud.${DOMAIN}`)"
       traefik.http.routers.cloud-app.middlewares: "cloud-app-headers,cloud-app-redirectregex"
@@ -140,7 +140,7 @@ services:
     environment:
       TZ: ${TZ}
       VIRTUAL_HOST: pihole.${DOMAIN}
-      WEBPASSWORD: ${WEBPASSWORD}
+      WEBPASSWORD: ${PIHOLE_PASSWORD}
     cap_add:
       - NET_ADMIN
     labels:
