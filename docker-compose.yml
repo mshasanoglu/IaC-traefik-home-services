@@ -76,12 +76,14 @@ services:
     image: redis
     container_name: redis
     restart: unless-stopped
+    command: redis-server /usr/local/etc/redis/redis.conf
     depends_on:
       - db
     networks:
       - nw-traefik
     volumes:
-      - ./data/in-memory-db:/var/lib/redis
+      - ./data/in-memory-db:/data
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
 
 ###########################
 ########## cloud ##########
@@ -102,16 +104,29 @@ services:
       - ./data/cloud-app/config:/var/www/html/config
       - ./data/cloud-app/data:/var/www/html/data
     environment:
+      # static
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_HOST: db
       REDIS_HOST: in-memory-db
+      REDIS_HOST_PORT: 6380
+      OVERWRITEHOST: cloud.hsngl.local.de
+      OVERWRITEPROTOCOL: https
+      APACHE_DISABLE_REWRITE_IP: 1
+      TRUSTED_PROXIES: 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
+      # dynamic
+      NEXTCLOUD_TRUSTED_DOMAINS: cloud.${DOMAIN}
       NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
       NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
-      NEXTCLOUD_TRUSTED_DOMAINS: cloud.${DOMAIN}
-      APACHE_DISABLE_REWRITE_IP: 1
-      TRUSTED_PROXIES: 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_AUTHTYPE: ${SMTP_AUTHTYPE}
+      SMTP_NAME: ${SMTP_NAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
+      MAIL_DOMAIN: ${MAIL_DOMAIN}
     labels:
       traefik.enable: "true"
       # routers
