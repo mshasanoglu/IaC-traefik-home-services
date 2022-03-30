@@ -69,6 +69,19 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
 
+############################
+####### in-memory-db #######
+############################
+  in-memory-db:
+    image: redis
+    container_name: redis
+    restart: unless-stopped
+    depends_on:
+      - db
+    networks:
+      - nw-traefik
+    volumes:
+      - ./data/in-memory-db:/var/lib/redis
 
 ###########################
 ########## cloud ##########
@@ -78,8 +91,7 @@ services:
     container_name: nextcloud
     restart: unless-stopped
     depends_on:
-      - traefik
-      - db
+      - in-memory-db
     networks:
       - nw-traefik
     links:
@@ -94,6 +106,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_HOST: db
+      REDIS_HOST: in-memory-db
       NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
       NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
       NEXTCLOUD_TRUSTED_DOMAINS: cloud.${DOMAIN}
