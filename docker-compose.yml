@@ -16,11 +16,11 @@ services:
       - nw-traefik
     ports:
       # The HTTP port
-      - 80:80
+      - "80:80/tcp"
       # The HTTPS port
-      - 443:443
+      - "443:443/tcp"
       # The Web UI (enabled by --api.insecure=true)
-      - 8008:8008
+      - "8008:8008/tcp"
     volumes:
       # So that Traefik can listen to the Docker events
       - /var/run/docker.sock:/var/run/docker.sock
@@ -42,8 +42,8 @@ services:
     networks:
       - nw-traefik
     labels:
-      traefik.enable: "true"
-#      traefik.http.routers.whoami.tls: "true"
+      traefik.enable: true
+#      traefik.http.routers.whoami.tls: true
 #      traefik.http.routers.whoami.tls.certresolver: "prod"
       traefik.http.routers.whoami.rule: "Host(`whoami.${DOMAIN}`)"
       
@@ -62,6 +62,7 @@ services:
     networks:
       - nw-traefik
     volumes:
+      - ./config/mariadb:/docker-entrypoint-initdb.d
       - ./data/db:/var/lib/mysql
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -85,8 +86,32 @@ services:
       - ./data/in-memory-db:/data
       - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
 
+############################
+######### homepage #########
+############################
+  homepage:
+    image: wordpress
+    container_name: wordpress
+    restart: unless-stopped
+    depends_on:
+      - db
+    networks:
+      - nw-traefik
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: ${MYSQL_USER}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
+    volumes:
+      - ./data/homepage:/var/www/html
+    labels:
+      traefik.enable: true
+#      traefik.http.routers.homepage.tls: true
+#      traefik.http.routers.homepage.tls.certresolver: "prod"
+      traefik.http.routers.homepage.rule: "Host(`${WORDPRESS_ALIAS}.${DOMAIN}`)"
+
 ###########################
-########## cloud ##########
+######## cloud-app ########
 ###########################
   cloud-app:
     image: nextcloud:latest
@@ -105,18 +130,18 @@ services:
       - ./data/cloud-app/data:/var/www/html/data
     environment:
       # static
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_HOST: db
       REDIS_HOST: in-memory-db
       REDIS_HOST_PORT: 6380
-      OVERWRITEHOST: cloud.hsngl.local.de
-      OVERWRITEPROTOCOL: https
       APACHE_DISABLE_REWRITE_IP: 1
       TRUSTED_PROXIES: 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
       # dynamic
-      NEXTCLOUD_TRUSTED_DOMAINS: cloud.${DOMAIN}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_ALIAS}.${DOMAIN}
+      OVERWRITEHOST: ${NEXTCLOUD_ALIAS}.${DOMAIN}
+      OVERWRITEPROTOCOL: ${NEXTCLOUD_PROTOCOL}
       NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
       NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
       SMTP_SECURE: ${SMTP_SECURE}
@@ -128,21 +153,21 @@ services:
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
       MAIL_DOMAIN: ${MAIL_DOMAIN}
     labels:
-      traefik.enable: "true"
+      traefik.enable: true
       # routers
-      traefik.http.routers.cloud-app.tls: "true"
+      traefik.http.routers.cloud-app.tls: true
 #      traefik.http.routers.cloud-app.tls.certresolver: "prod"
-      traefik.http.routers.cloud-app.rule: "Host(`cloud.${DOMAIN}`)"
+      traefik.http.routers.cloud-app.rule: "Host(`${NEXTCLOUD_ALIAS}.${DOMAIN}`)"
       traefik.http.routers.cloud-app.middlewares: "cloud-app-headers,cloud-app-redirectregex"
       # middleware headers
-      traefik.http.middlewares.cloud-app-headers.headers.customFrameOptionsValue: "ALLOW-FROM https://cloud.${DOMAIN}"
-      traefik.http.middlewares.cloud-app-headers.headers.contentSecurityPolicy: "frame-ancestors 'self' cloud.${DOMAIN}"
+      traefik.http.middlewares.cloud-app-headers.headers.customFrameOptionsValue: "ALLOW-FROM https://${NEXTCLOUD_ALIAS}.${DOMAIN}"
+      traefik.http.middlewares.cloud-app-headers.headers.contentSecurityPolicy: "frame-ancestors 'self' ${NEXTCLOUD_ALIAS}.${DOMAIN}"
       traefik.http.middlewares.cloud-app-headers.headers.stsSeconds: "155520011"
-      traefik.http.middlewares.cloud-app-headers.headers.stsIncludeSubdomains: "true"
-      traefik.http.middlewares.cloud-app-headers.headers.stsPreload: "true"
+      traefik.http.middlewares.cloud-app-headers.headers.stsIncludeSubdomains: true
+      traefik.http.middlewares.cloud-app-headers.headers.stsPreload: true
       traefik.http.middlewares.cloud-app-headers.headers.customresponseheaders.X-Frame-Options: "SAMEORIGIN"
       # middleware redirectregex
-      traefik.http.middlewares.cloud-app-redirectregex.redirectregex.permanent: "true"
+      traefik.http.middlewares.cloud-app-redirectregex.redirectregex.permanent: true
       traefik.http.middlewares.cloud-app-redirectregex.redirectregex.regex: "https://(.*)/.well-known/(card|cal)dav"
       traefik.http.middlewares.cloud-app-redirectregex.redirectregex.replacement: "https://$${1}/remote.php/dav/"
 
@@ -156,31 +181,38 @@ services:
     restart: unless-stopped
     depends_on:
       - traefik
-    networks:
-      - nw-traefik
-    ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-      - "67:67/udp"
+    network_mode: host
     volumes:
       - ./data/pihole/etc-pihole:/etc/pihole
       - ./data/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
     environment:
       TZ: ${TZ}
-      VIRTUAL_HOST: pihole.${DOMAIN}
       WEBPASSWORD: ${PIHOLE_PASSWORD}
+      PIHOLE_DNS_: ${PIHOLE_DNS}
+      DHCP_ACTIVE: ${DHCP_ACTIVE}
+      DHCP_START: ${DHCP_START}
+      DHCP_END: ${DHCP_END}
+      DHCP_ROUTER: ${DHCP_ROUTER}
+      DHCP_LEASETIME: ${DHCP_LEASETIME}
+      PIHOLE_DOMAIN: ${PIHOLE_DOMAIN}
+      DHCP_rapid_commit: ${DHCP_RAPID_COMMIT}
+      DHCP_IPv6: ${DHCP_IPV6}
+      VIRTUAL_HOST: ${PIHOLE_ALIAS}.${DOMAIN}
+      WEBTHEME: ${WEBTHEME}
+      INTERFACE: ${INTERFACE}
+      DNSMASQ_LISTENING: ${DNSMASQ_LISTENING}
     cap_add:
       - NET_ADMIN
-    labels:
-      traefik.enable: "true"
-#      traefik.http.routers.pihole.tls: "true"
+#    labels:
+#      traefik.enable: true
+#      traefik.http.routers.pihole.tls: true
 #      traefik.http.routers.pihole.tls.certresolver: "prod"
-      traefik.http.routers.pihole.rule: "Host(`pihole.${DOMAIN}`)"
-      traefik.http.services.pihole.loadbalancer.server.port: 80
+#      traefik.http.routers.pihole.rule: "Host(`${PIHOLE_ALIAS}.${DOMAIN}`)"
+#      traefik.http.services.pihole.loadbalancer.server.port: 80
 
-############################
-###### home assistant ######
-############################
+#############################
+####### smarthome-app #######
+#############################
   smarthome-app:
     image: iobroker/iobroker
     container_name: iobroker
@@ -195,8 +227,8 @@ services:
     environment:
       TZ: ${TZ}
     labels:
-      traefik.enable: "true"
-#      traefik.http.routers.smarthome-app.tls: "true"
+      traefik.enable: true
+#      traefik.http.routers.smarthome-app.tls: true
 #      traefik.http.routers.smarthome-app.tls.certresolver: "prod"
       traefik.http.routers.smarthome-app.rule: "Host(`home.${DOMAIN}`)"
       traefik.http.services.smarthome-app.loadbalancer.server.port: 8081
