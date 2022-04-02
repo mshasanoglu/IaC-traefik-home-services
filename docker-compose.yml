@@ -14,12 +14,14 @@ services:
     restart: unless-stopped
     networks:
       - nw-traefik
+    extra_hosts:
+      - host.docker.internal:${HOST_IP}
     ports:
       # The HTTP port
       - "80:80/tcp"
       # The HTTPS port
       - "443:443/tcp"
-      # The Web UI (enabled by --api.insecure=true)
+      # The WWeb UI (enabled by --api.insecure=true)
       - "8008:8008/tcp"
     volumes:
       # So that Traefik can listen to the Docker events
@@ -32,7 +34,7 @@ services:
 ############################
 ########## whoami ##########
 ############################
-  whoami:
+  whoami-app:
     # A container that exposes an API to show its IP address
     image: traefik/whoami
     container_name: whoami
@@ -43,9 +45,9 @@ services:
       - nw-traefik
     labels:
       traefik.enable: true
-#      traefik.http.routers.whoami.tls: true
-#      traefik.http.routers.whoami.tls.certresolver: "prod"
-      traefik.http.routers.whoami.rule: "Host(`whoami.${DOMAIN}`)"
+#      traefik.http.routers.whoami-app.tls: true
+#      traefik.http.routers.whoami-app.tls.certresolver: "prod"
+      traefik.http.routers.whoami-app.rule: "Host(`whoami.${DOMAIN}`)"
       
 
 
@@ -175,7 +177,7 @@ services:
 ############################
 ########## pihole ##########
 ############################
-  pihole:
+  pihole-app:
     image: pihole/pihole:latest
     container_name: pihole
     restart: unless-stopped
@@ -183,8 +185,9 @@ services:
       - traefik
     network_mode: host
     volumes:
-      - ./data/pihole/etc-pihole:/etc/pihole
-      - ./data/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
+      - ./data/pihole-app/etc-pihole:/etc/pihole
+      - ./data/pihole-app/etc-dnsmasq.d:/etc/dnsmasq.d
+
     environment:
       TZ: ${TZ}
       WEBPASSWORD: ${PIHOLE_PASSWORD}
@@ -200,15 +203,16 @@ services:
       VIRTUAL_HOST: ${PIHOLE_ALIAS}.${DOMAIN}
       WEBTHEME: ${WEBTHEME}
       INTERFACE: ${INTERFACE}
+      WEB_PORT: ${PIHOLE_WEB_PORT}
       DNSMASQ_LISTENING: ${DNSMASQ_LISTENING}
     cap_add:
       - NET_ADMIN
-#    labels:
-#      traefik.enable: true
-#      traefik.http.routers.pihole.tls: true
-#      traefik.http.routers.pihole.tls.certresolver: "prod"
-#      traefik.http.routers.pihole.rule: "Host(`${PIHOLE_ALIAS}.${DOMAIN}`)"
-#      traefik.http.services.pihole.loadbalancer.server.port: 80
+    labels:
+      traefik.enable: true
+#      traefik.http.routers.pihole-app.tls: true
+#      traefik.http.routers.pihole-app.tls.certresolver: "prod"
+      traefik.http.routers.pihole-app.rule: "Host(`${PIHOLE_ALIAS}.${DOMAIN}`)"
+      traefik.http.services.pihole-app.loadbalancer.server.port: ${PIHOLE_WEB_PORT}
 
 #############################
 ####### smarthome-app #######
@@ -220,8 +224,7 @@ services:
     restart: unless-stopped
     depends_on:
       - traefik
-    networks:
-      - nw-traefik
+    network_mode: host
     volumes:
       - ./data/smarthome-app:/opt/iobroker
     environment:
@@ -230,7 +233,7 @@ services:
       traefik.enable: true
 #      traefik.http.routers.smarthome-app.tls: true
 #      traefik.http.routers.smarthome-app.tls.certresolver: "prod"
-      traefik.http.routers.smarthome-app.rule: "Host(`home.${DOMAIN}`)"
+      traefik.http.routers.smarthome-app.rule: "Host(`${IOBROKER_ALIAS}.${DOMAIN}`)"
       traefik.http.services.smarthome-app.loadbalancer.server.port: 8081
 
 ##############################
