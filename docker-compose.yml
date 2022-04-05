@@ -18,20 +18,21 @@ services:
       - host.docker.internal:${HOST_IP}
     ports:
       # The HTTP port
-      - "80:80/tcp"
+      - 80:80/tcp
       # The HTTPS port
-      - "443:443/tcp"
+      - 443:443/tcp
       # The WWeb UI (enabled by --api.insecure=true)
-      - "8008:8008/tcp"
+      - 8008:8008/tcp
     volumes:
       # So that Traefik can listen to the Docker events
       - /var/run/docker.sock:/var/run/docker.sock
       # Traefik static configuration 
       - ./config/traefik/traefik.yml:/etc/traefik/traefik.yml
       # Traefik dynamic configuration
-      - ./config/traefik/dynamic-conf:/etc/traefik/dynamic-conf
+#      - ./config/traefik/dynamic-conf:/etc/traefik/dynamic-conf
       # Traefik ssl certs 
       - ./config/traefik/acme.json:/ssl-certs/acme.json
+
 
 ############################
 ########## whoami ##########
@@ -41,17 +42,16 @@ services:
     image: traefik/whoami
     container_name: whoami
     restart: unless-stopped
-    depends_on:
-      - traefik
     networks:
       - nw-traefik
+    depends_on:
+      - traefik
     labels:
       traefik.enable: true
 #      traefik.http.routers.whoami-app.tls: true
 #      traefik.http.routers.whoami-app.tls.certresolver: "prod"
       traefik.http.routers.whoami-app.rule: "Host(`whoami.${DOMAIN}`)"
       
-
 
 ############################
 ############ db ############
@@ -61,10 +61,10 @@ services:
     container_name: mariadb
     restart: unless-stopped
     command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
-    depends_on:
-      - traefik
     networks:
       - nw-traefik
+    depends_on:
+      - traefik
     volumes:
       - ./config/mariadb:/docker-entrypoint-initdb.d
       - ./data/db:/var/lib/mysql
@@ -74,6 +74,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
 
+
 ############################
 ####### in-memory-db #######
 ############################
@@ -82,13 +83,14 @@ services:
     container_name: redis
     restart: unless-stopped
     command: redis-server /usr/local/etc/redis/redis.conf
-    depends_on:
-      - db
     networks:
       - nw-traefik
+    depends_on:
+      - db
     volumes:
       - ./data/in-memory-db:/data
       - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
+
 
 ############################
 ######### homepage #########
@@ -97,10 +99,10 @@ services:
     image: wordpress
     container_name: wordpress
     restart: unless-stopped
-    depends_on:
-      - db
     networks:
       - nw-traefik
+    depends_on:
+      - db
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: ${MYSQL_USER}
@@ -114,6 +116,7 @@ services:
 #      traefik.http.routers.homepage.tls.certresolver: "prod"
       traefik.http.routers.homepage.rule: "Host(`${WORDPRESS_ALIAS}.${DOMAIN}`)"
 
+
 ###########################
 ######## cloud-app ########
 ###########################
@@ -121,10 +124,10 @@ services:
     image: nextcloud:latest
     container_name: nextcloud
     restart: unless-stopped
-    depends_on:
-      - in-memory-db
     networks:
       - nw-traefik
+    depends_on:
+      - in-memory-db
     links:
       - db
     volumes:
@@ -183,13 +186,14 @@ services:
     image: pihole/pihole:latest
     container_name: pihole
     restart: unless-stopped
+    network_mode: host
     depends_on:
       - traefik
-    network_mode: host
+    cap_add:
+      - NET_ADMIN
     volumes:
       - ./data/pihole-app/etc-pihole:/etc/pihole
       - ./data/pihole-app/etc-dnsmasq.d:/etc/dnsmasq.d
-
     environment:
       TZ: ${TZ}
       WEBPASSWORD: ${PIHOLE_PASSWORD}
@@ -207,14 +211,13 @@ services:
       INTERFACE: ${INTERFACE}
       WEB_PORT: ${PIHOLE_WEB_PORT}
       DNSMASQ_LISTENING: ${DNSMASQ_LISTENING}
-    cap_add:
-      - NET_ADMIN
     labels:
       traefik.enable: true
 #      traefik.http.routers.pihole-app.tls: true
 #      traefik.http.routers.pihole-app.tls.certresolver: "prod"
       traefik.http.routers.pihole-app.rule: "Host(`${PIHOLE_ALIAS}.${DOMAIN}`)"
       traefik.http.services.pihole-app.loadbalancer.server.port: ${PIHOLE_WEB_PORT}
+
 
 #############################
 ####### smarthome-app #######
@@ -224,9 +227,9 @@ services:
     container_name: iobroker
     hostname: smarthome-app
     restart: unless-stopped
+    network_mode: host
     depends_on:
       - traefik
-    network_mode: host
     volumes:
       - ./data/smarthome-app:/opt/iobroker
     environment:
@@ -237,6 +240,44 @@ services:
 #      traefik.http.routers.smarthome-app.tls.certresolver: "prod"
       traefik.http.routers.smarthome-app.rule: "Host(`${IOBROKER_ALIAS}.${DOMAIN}`)"
       traefik.http.services.smarthome-app.loadbalancer.server.port: 8081
+
+
+#############################
+############ vpn ############
+#############################
+  vpn:
+    image: lscr.io/linuxserver/wireguard
+    container_name: wireguard
+    restart: unless-stopped
+    networks:
+      - nw-traefik
+    ports:
+      - 51820:51820/udp
+    depends_on:
+      - traefik
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      net.ipv4.conf.all.src_valid_mark: 1
+    volumes:
+      - ./data/vpn:/config
+      - /lib/modules:/lib/modules
+    environment:
+      TZ: ${TZ}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      SERVERURL: auto
+      SERVERPORT: ${WIREGUARD_SERVERPORT}
+      PEERS: ${PEERS}
+      PEERDNS: ${PEERDNS}
+      INTERNAL_SUBNET: ${WIREGUARD_INTERNAL_SUBNET}
+#    labels:
+#      traefik.enable: true
+#      traefik.http.routers.vpn.tls: true
+#      traefik.http.routers.vpn.tls.certresolver: "prod"
+#      traefik.http.routers.vpn.rule: "Host(`vpn.${DOMAIN}`)"
+#      traefik.http.services.vpn.loadbalancer.server.port: 51820/udp
 
 ##############################
 ########## networks ##########
