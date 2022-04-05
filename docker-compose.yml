@@ -28,6 +28,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       # Traefik static configuration 
       - ./config/traefik/traefik.yml:/etc/traefik/traefik.yml
+      # Traefik dynamic configuration
+      - ./config/traefik/dynamic-conf:/etc/traefik/dynamic-conf
       # Traefik ssl certs 
       - ./config/traefik/acme.json:/ssl-certs/acme.json
 

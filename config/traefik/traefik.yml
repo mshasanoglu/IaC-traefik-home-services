@@ -169,4 +169,7 @@ providers:
     # Optional
     # Default: true
     #
-    exposedByDefault: false
+#    exposedByDefault: false
+
+  file:
+    directory: "/etc/traefik/dynamic-conf"
