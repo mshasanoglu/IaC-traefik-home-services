@@ -17,6 +17,12 @@ printf "\n${CYAN} PIPELINE START \n\n${NC}"
 export $(grep -v '^#' .env | xargs)
 printf "\n${PURPLE} ENVIRONMENT VARIABLES LOADED \n\n${NC}"
 
+# modify mariadb init file
+printf "\n${PURPLE} MODIFYING MARIADB INIT FILE \n\n${NC}"
+sed -i "s/USER/${MYSQL_USER}/g" config/mariadb/init.sql
+sed -i "s/WORDPRESS_DB/${WORDPRESS_DB}/g" config/mariadb/init.sql
+sed -i "s/NEXTCLOUD_DB/${NEXTCLOUD_DB}/g" config/mariadb/init.sql
+
 
 # start building applications
 printf "\n${PURPLE} STARTING DOCKER-COMPOSE \n\n${NC}"
