@@ -22,7 +22,7 @@ services:
       net.ipv4.conf.all.src_valid_mark: 1
     volumes:
       - /lib/modules:/lib/modules
-      - ./data/vpn:/config
+      - $DATA_PATH/vpn:/config
     environment:
       # DYNAMIC
       TZ: ${TZ}
@@ -98,8 +98,8 @@ services:
     cap_add:
       - NET_ADMIN
     volumes:
-      - ./data/pihole-app/etc-pihole:/etc/pihole
-      - ./data/pihole-app/etc-dnsmasq.d:/etc/dnsmasq.d
+      - $DATA_PATH/pihole-app/etc-pihole:/etc/pihole
+      - $DATA_PATH/pihole-app/etc-dnsmasq.d:/etc/dnsmasq.d
     environment:
       # DYNAMIC
       TZ: ${TZ}
@@ -140,7 +140,7 @@ services:
     depends_on:
       - traefik
     volumes:
-      - ./data/smarthome-app:/opt/iobroker
+      - $DATA_PATH/smarthome-app:/opt/iobroker
     environment:
       # DYNAMIC
       TZ: ${TZ}
@@ -167,8 +167,8 @@ services:
     depends_on:
       - traefik
     volumes:
-      - ./config/mariadb:/docker-entrypoint-initdb.d
-      - ./data/db:/var/lib/mysql
+      - $DATA_PATH/db/init:/docker-entrypoint-initdb.d
+      - $DATA_PATH/db/mysql:/var/lib/mysql
     environment:
       # DYNAMIC
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -205,7 +205,7 @@ services:
       - db-app
     volumes:
       - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
-      - ./data/in-memory-db:/data
+      - $DATA_PATH/in-memory-db:/data
 
 
 ############################
@@ -227,7 +227,7 @@ services:
       WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
       WORDPRESS_DB_NAME: ${WORDPRESS_DB}
     volumes:
-      - ./data/homepage:/var/www/html
+      - $DATA_PATH/homepage:/var/www/html
     labels:
       traefik.enable: true
       # ROUTERS
@@ -248,10 +248,10 @@ services:
     depends_on:
       - in-memory-db
     volumes:
-      - ./data/cloud-app/html:/var/www/html
-      - ./data/cloud-app/custom_apps:/var/www/html/custom_apps
-      - ./data/cloud-app/config:/var/www/html/config
-      - ./data/cloud-app/data:/var/www/html/data
+      - $DATA_PATH/cloud-app/html:/var/www/html
+      - $DATA_PATH/cloud-app/custom_apps:/var/www/html/custom_apps
+      - $DATA_PATH/cloud-app/config:/var/www/html/config
+      - $DATA_PATH/cloud-app/data:/var/www/html/data
     environment:
       # STATIC
       MYSQL_HOST: db

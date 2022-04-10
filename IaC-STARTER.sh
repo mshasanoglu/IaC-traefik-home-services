@@ -19,10 +19,13 @@ printf "\n${PURPLE} ENVIRONMENT VARIABLES LOADED \n\n${NC}"
 
 # modify mariadb init file
 printf "\n${PURPLE} MODIFYING MARIADB INIT FILE \n\n${NC}"
-sed -i "s/USER/${MYSQL_USER}/g" config/mariadb/init.sql
-sed -i "s/WORDPRESS_DB/${WORDPRESS_DB}/g" config/mariadb/init.sql
-sed -i "s/NEXTCLOUD_DB/${NEXTCLOUD_DB}/g" config/mariadb/init.sql
-
+mkdir -p $DATA_PATH/db/init
+for file in ./config/mariadb/*
+do
+  FILENAME=$(basename $file)
+  printf "\n${PURPLE} EDITING $FILENAME \n${NC}"
+  sed  "s/USER_NAME/${MYSQL_USER}/g ; s/DB_NAME/${!FILENAME}/g ; $ a \ " $file >> $DATA_PATH/db/init/init.sql
+done
 
 # start building applications
 printf "\n${PURPLE} STARTING DOCKER-COMPOSE \n\n${NC}"
@@ -39,8 +42,8 @@ printf "\n${PURPLE} MISSING PACKAGE FOR NEXTCLOUD INSTALLED \n\n${NC}"
 printf "\n${PURPLE} WAITING 20 SECONDS TO APPEND EXTRA CONFIGURATION VALUES TO NEXTCLOUD \n\n${NC}"
 sleep 20
 printf "\n${PURPLE} ADDING EXTRA VALUES \n\n${NC}"
-sed -i "/overwrite.cli.url/d" data/cloud-app/config/config.php
-sed -i "/);/i \  'overwrite.cli.url' => '${NEXTCLOUD_PROTOCOL}://${NEXTCLOUD_ALIAS}.${DOMAIN}'," data/cloud-app/config/config.php
-sed -i "/);/i \  'default_phone_region' => '${PHONE_REGION}'," data/cloud-app/config/config.php
+sed -i "/overwrite.cli.url/d" $DATA_PATH/cloud-app/config/config.php
+sed -i "/);/i \  'overwrite.cli.url' => '${NEXTCLOUD_PROTOCOL}://${NEXTCLOUD_ALIAS}.${DOMAIN}'," $DATA_PATH/cloud-app/config/config.php
+sed -i "/);/i \  'default_phone_region' => '${PHONE_REGION}'," $DATA_PATH/cloud-app/config/config.php
 
 printf "\n${CYAN} PIPELINE DONE \n\n${NC}"
