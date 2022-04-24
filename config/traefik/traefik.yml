@@ -24,11 +24,11 @@ global:
 entryPoints:
   web:
     address: :80
-#    http:
-#      redirections:
-#        entryPoint:
-#          to: websecure
-#          scheme: https
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
 
   websecure:
     address: :443
@@ -45,6 +45,7 @@ certificatesResolvers:
     acme:
       email: email@domain.com
       storage: /ssl-certs/acme.json
+      caServer: "https://acme-v02.api.letsencrypt.org/directory"
       httpChallenge:
         # used during the challenge
         entryPoint: web
