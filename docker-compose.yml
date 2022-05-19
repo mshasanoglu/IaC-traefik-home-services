@@ -80,10 +80,13 @@ services:
       traefik.enable: true
       # ROUTERS
       traefik.http.routers.traefik.tls: true
-      traefik.http.routers.traefik.tls.certresolver: "prod"
+      #traefik.http.routers.traefik.tls.certresolver: "prod"
       traefik.http.routers.traefik.rule: "Host(`${TRAEFIK_ALIAS}.${DOMAIN}`)"
+      traefik.http.routers.traefik.middlewares: traefik-auth
       # SERVICES
       traefik.http.services.traefik.loadbalancer.server.port: ${TRAEFIK_WEB_PORT}
+      # MIDDLEWARES
+      traefik.http.middlewares.traefik-auth.basicauth.users: ${SCRIPT_GENERATED_CREDS}
 
 
 ############################

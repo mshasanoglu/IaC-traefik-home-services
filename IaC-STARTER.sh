@@ -17,6 +17,10 @@ printf "\n${CYAN} PIPELINE START \n\n${NC}"
 export $(grep -v '^#' .env | xargs)
 printf "\n${PURPLE} ENVIRONMENT VARIABLES LOADED \n\n${NC}"
 
+# generate traefik credentials to hash
+export SCRIPT_GENERATED_CREDS=$(htpasswd -nb $TRAEFIK_WEB_USER $TRAEFIK_WEB_PASSWORD)
+printf "\n${PURPLE} HASH CREDENTIALS FOR TRAEFIK DASHBOARD CREATED\n\n${NC}"
+
 # modify mariadb init file
 printf "\n${PURPLE} MODIFYING MARIADB INIT FILE \n\n${NC}"
 mkdir -p $DATA_PATH/db/init
