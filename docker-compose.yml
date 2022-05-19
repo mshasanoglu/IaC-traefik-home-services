@@ -43,6 +43,21 @@ services:
     image: traefik:v2.6
     container_name: traefik--2-6
     restart: unless-stopped
+    command:
+      --global.checknewversion=true
+      --global.sendanonymoususage=false
+      --entrypoints.web.address=:80
+      --entrypoints.web.http.redirections.entrypoint.to=websecure
+      --entrypoints.web.http.redirections.entrypoint.scheme=https
+      --entrypoints.websecure.address=:443
+      --entrypoints.traefik.address=:${TRAEFIK_WEB_PORT}
+      --certificatesresolvers.prod.acme.email=${SMTP_NAME}
+      --certificatesresolvers.prod.acme.storage=/ssl-certs/acme.json
+      --certificatesresolvers.prod.acme.caserver=https://acme-v02.api.letsencrypt.org/directory
+      --certificatesresolvers.prod.acme.httpchallenge.entrypoint=web
+      --api.insecure=true
+      --providers.docker.exposedbydefault=false
+      --providers.file.directory=/etc/traefik/dynamic-conf
     networks:
       - nw-traefik
     extra_hosts:
@@ -53,28 +68,26 @@ services:
       # The HTTPS port
       - 443:443/tcp
       # The Web UI (enabled by --api.insecure=true)
-      - 8008:8008/tcp
+      - ${TRAEFIK_WEB_PORT}:${TRAEFIK_WEB_PORT}/tcp
     volumes:
       # So that Traefik can listen to the Docker events
       - /var/run/docker.sock:/var/run/docker.sock
-      # Traefik static configuration 
-      - ./config/traefik/traefik.yml:/etc/traefik/traefik.yml
       # Traefik dynamic configuration
       - ./config/traefik/dynamic-conf:/etc/traefik/dynamic-conf
       # Traefik ssl certs 
-#      - ./data/traefik/acme.json:/ssl-certs/acme.json
       - ./data/ssl-certs:/ssl-certs
     labels:
       traefik.enable: true
       # ROUTERS
       traefik.http.routers.traefik.tls: true
       traefik.http.routers.traefik.tls.certresolver: "prod"
-      traefik.http.routers.traefik.rule: "Host(`traefik.${DOMAIN}`)"
+      traefik.http.routers.traefik.rule: "Host(`${TRAEFIK_ALIAS}.${DOMAIN}`)"
       # SERVICES
-      traefik.http.services.traefik.loadbalancer.server.port: 8008
+      traefik.http.services.traefik.loadbalancer.server.port: ${TRAEFIK_WEB_PORT}
+
 
 ############################
-########## whoami ##########
+######## whoami-app ########
 ############################
   whoami-app:
     # A container that exposes an API to show its IP address
@@ -93,8 +106,36 @@ services:
       traefik.http.routers.whoami-app.rule: "Host(`whoami.${DOMAIN}`)"
 
 
+#############################
+######## vs-code-app ########
+#############################
+  vs-code-app:
+    # A container that exposes an API to show its IP address
+    image: lscr.io/linuxserver/code-server
+    container_name: code-server
+    restart: unless-stopped
+    networks:
+      - nw-traefik
+    depends_on:
+      - traefik
+    volumes:
+      - $DATA_PATH/vs-code-app:/config
+    environment:
+      TZ: ${TZ}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      PASSWORD: ${VS_CODE_PASSWORD}
+      SUDO_PASSWORD: ${VS_CODE_SUDO_PASSWORD}
+    labels:
+      traefik.enable: true
+      # ROUTERS
+      traefik.http.routers.vs-code-app.tls: true
+      traefik.http.routers.vs-code-app.tls.certresolver: "prod"
+      traefik.http.routers.vs-code-app.rule: "Host(`${VS_CODE_ALIAS}.${DOMAIN}`)"
+
+
 ############################
-########## pihole ##########
+######## pihole-app ########
 ############################
   pihole-app:
     image: pihole/pihole:latest
@@ -169,7 +210,9 @@ services:
     image: mariadb
     container_name: mariadb
     restart: unless-stopped
-    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    command: 
+      --transaction-isolation=READ-COMMITTED
+      --binlog-format=ROW
     networks:
       - nw-traefik
     depends_on:
@@ -302,36 +345,6 @@ services:
       traefik.http.middlewares.cloud-app-redirectregex.redirectregex.permanent: true
       traefik.http.middlewares.cloud-app-redirectregex.redirectregex.regex: "${NEXTCLOUD_PROTOCOL}://(.*)/.well-known/(card|cal)dav"
       traefik.http.middlewares.cloud-app-redirectregex.redirectregex.replacement: "${NEXTCLOUD_PROTOCOL}://$${1}/remote.php/dav/"
-
-
-###########################
-######## office ########
-###########################
-  office:
-    image: collabora/code
-    container_name: collabora
-    restart: unless-stopped
-    privileged: true
-    networks:
-      - nw-traefik
-    depends_on:
-      - cloud-app
-    cap_add:
-      - MKNOD
-    environment:
-      # DYNAMIC
-      aliasgroup1: ${NEXTCLOUD_PROTOCOL}://${NEXTCLOUD_ALIAS}.${DOMAIN}:443
-      server_name: ${OFFICE_ALIAS}.${DOMAIN}
-      username: ${NEXTCLOUD_ADMIN_USER}
-      password: ${NEXTCLOUD_ADMIN_PASSWORD}
-      dictionaries: ${OFFICE_DICTIONARIES}
-      extra_params: ${OFFICE_EXTRA_PARAMS}
-    labels:
-      traefik.enable: true
-      # ROUTERS
-      traefik.http.routers.office.tls: true
-      traefik.http.routers.office.tls.certresolver: "prod"
-      traefik.http.routers.office.rule: "Host(`office.${DOMAIN}`)"
 
 
 ##############################
