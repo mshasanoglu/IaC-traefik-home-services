@@ -58,5 +58,5 @@ Temporary Items
 # data file after docker-compose
 data
 
-# dynamic configuration folder
-dynamic-conf
+# dynamic configuration files
+gw-router.yml

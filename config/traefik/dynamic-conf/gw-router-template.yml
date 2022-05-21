@@ -1,0 +1,13 @@
+http:
+  routers:
+    gw-router:
+      service: gw-router
+      tls: true
+      tls:
+        certResolver: "prod"
+      rule: "Host(`router.mydomain.de`)"
+  services:
+    gw-router:
+      loadBalancer:
+        servers:
+          - url: "http://192.168.2.1"
