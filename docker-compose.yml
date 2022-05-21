@@ -75,18 +75,18 @@ services:
       # Traefik dynamic configuration
       - ./config/traefik/dynamic-conf:/etc/traefik/dynamic-conf
       # Traefik ssl certs 
-      - ./data/ssl-certs:/ssl-certs
+      - $DATA_PATH/ssl-certs:/ssl-certs
     labels:
       traefik.enable: true
       # ROUTERS
       traefik.http.routers.traefik.tls: true
-      #traefik.http.routers.traefik.tls.certresolver: "prod"
+      traefik.http.routers.traefik.tls.certresolver: "prod"
       traefik.http.routers.traefik.rule: "Host(`${TRAEFIK_ALIAS}.${DOMAIN}`)"
       traefik.http.routers.traefik.middlewares: traefik-auth
       # SERVICES
       traefik.http.services.traefik.loadbalancer.server.port: ${TRAEFIK_WEB_PORT}
       # MIDDLEWARES
-      traefik.http.middlewares.traefik-auth.basicauth.users: ${SCRIPT_GENERATED_CREDS}
+      traefik.http.middlewares.traefik-auth.basicauth.users: ${BASIC_AUTH_CREDS}
 
 
 ############################
