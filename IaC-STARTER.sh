@@ -14,8 +14,10 @@ fi
 printf "\n${CYAN} STARTING PIPELINE \n\n${NC}"
 
 # load .env file
-export $(grep -v '^#' .env | xargs)
+printf "\n${PURPLE} REMOVING COMMENTS FROM .env FILE \n\n${NC}"
+sed -i "s/# e.g.*//  " .env
 printf "\n${PURPLE} LOADING ENVIRONMENT VARIABLES \n\n${NC}"
+export $(grep -v '^#' .env | xargs)
 
 # generate traefik credentials to hash
 export BASIC_AUTH_CREDS=$(htpasswd -nb $BASIC_AUTH_USERNAME $BASIC_AUTH_PASSWORD)
