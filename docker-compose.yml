@@ -294,8 +294,8 @@ services:
 ######## cloud-app ########
 ###########################
   cloud-app:
-    image: nextcloud:latest
-    container_name: nextcloud
+    image: nextcloud:24.0.1
+    container_name: nextcloud--24-0-1
     restart: unless-stopped
     networks:
       - nw-traefik
