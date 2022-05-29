@@ -6,7 +6,7 @@ All Services are deployed behind the proxy and using SSL.
 * rename the file `.env_template` to `.env`
 * edit your environment variables inside the previously renamed `.env` file
 
-# ❗️REQUIRED 
+## REQUIRED ❗️
 * `docker-compose` installation
 * Own DOMAIN with CNAME entries for the SUBDOMAINS (Alias values inside the `.env` file)
 * Port Forwarding `80` and `443` on your Router configurations
