@@ -11,6 +11,7 @@ if [ "$EUID" != 0 ]
   then printf "\n${RED} PLEASE RUN AS ROOT \n\n${NC}"
   exit
 fi
+
 printf "\n${CYAN} STARTING PIPELINE \n\n${NC}"
 
 # load .env file
@@ -20,8 +21,8 @@ printf "\n${PURPLE} LOADING ENVIRONMENT VARIABLES \n\n${NC}"
 export $(grep -v '^#' .env | xargs)
 
 # generate traefik credentials to hash
-export BASIC_AUTH_CREDS=$(htpasswd -nb $BASIC_AUTH_USERNAME $BASIC_AUTH_PASSWORD)
 printf "\n${PURPLE} CREATING HASH CREDENTIALS FOR BasicAUTH LOGINS \n\n${NC}"
+export BASIC_AUTH_CREDS=$(htpasswd -nb $BASIC_AUTH_USERNAME $BASIC_AUTH_PASSWORD)
 
 # start building applications
 printf "\n${PURPLE} UPDATING SERVICES\n\n${NC}"

@@ -55,8 +55,6 @@ Temporary Items
 # environment file
 .env
 
-# data file after docker-compose
-data
-
-# dynamic configuration files
+# personal files
 gw-router.yml
+get-vpn-confs.sh
