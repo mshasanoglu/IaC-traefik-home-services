@@ -186,7 +186,7 @@ services:
   smarthome-app:
     image: iobroker/iobroker
     container_name: iobroker
-    hostname: smarthome-app
+    hostname: $HOSTNAME
     restart: unless-stopped
     network_mode: host
     depends_on:
@@ -348,6 +348,41 @@ services:
       traefik.http.middlewares.cloud-app-redirectregex.redirectregex.permanent: true
       traefik.http.middlewares.cloud-app-redirectregex.redirectregex.regex: "${NEXTCLOUD_PROTOCOL}://(.*)/.well-known/(card|cal)dav"
       traefik.http.middlewares.cloud-app-redirectregex.redirectregex.replacement: "${NEXTCLOUD_PROTOCOL}://$${1}/remote.php/dav/"
+
+
+###########################
+######## plex-app ########
+###########################
+  plex-app:
+    image: lscr.io/linuxserver/plex:latest
+    container_name: plex
+    hostname: ${HOSTNAME}
+    restart: unless-stopped
+    networks:
+      - nw-traefik
+    ports:
+      - 32400:32400/tcp
+    depends_on:
+      - cloud-app
+    volumes:
+      - $DATA_PATH/plex-app/config:/config
+      - $DATA_PATH/plex-app/transcode-temp:/transcode
+      - $DATA_PATH/$PLEX_DATA:/data
+    environment:
+      # STATIC
+      VERSION: docker
+      # DYNAMIC
+      TZ: ${TZ}
+      PLEX_CLAIM: ${PLEX_CLAIM}
+      ADVERTISE_IP: http://${HOST_IP}:32400/
+    labels:
+      traefik.enable: true
+      # ROUTERS
+      traefik.http.routers.plex-app.tls: true
+      traefik.http.routers.plex-app.tls.certresolver: "prod"
+      traefik.http.routers.plex-app.rule: "Host(`${PLEX_ALIAS}.${DOMAIN}`)"
+      # SERVICES
+      traefik.http.services.plex-app.loadbalancer.server.port: 32400
 
 
 ##############################
