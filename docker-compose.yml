@@ -350,9 +350,9 @@ services:
       traefik.http.middlewares.cloud-app-redirectregex.redirectregex.replacement: "${NEXTCLOUD_PROTOCOL}://$${1}/remote.php/dav/"
 
 
-###########################
+##########################
 ######## plex-app ########
-###########################
+##########################
   plex-app:
     image: lscr.io/linuxserver/plex:latest
     container_name: plex
@@ -383,6 +383,34 @@ services:
       traefik.http.routers.plex-app.rule: "Host(`${PLEX_ALIAS}.${DOMAIN}`)"
       # SERVICES
       traefik.http.services.plex-app.loadbalancer.server.port: 32400
+
+
+###########################
+######## api-app ##########
+###########################
+  api-app:
+    build: ./config/fastapi/
+    image: api-app:latest
+    container_name: fastapi
+    restart: unless-stopped
+    networks:
+      - nw-traefik
+    depends_on:
+      - in-memory-db
+    volumes:
+      - $DATA_PATH/$API_DATA:/code/app
+    environment:
+      # DYNAMIC
+      TZ: ${TZ}
+      API_KEY: ${API_KEY}
+      API_KEY_NAME: ${API_KEY_NAME}
+      COOKIE_DOMAIN: ${API_ALIAS}.${DOMAIN}
+    labels:
+      traefik.enable: true
+      # ROUTERS
+      traefik.http.routers.api-app.tls: true
+      traefik.http.routers.api-app.tls.certresolver: "prod"
+      traefik.http.routers.api-app.rule: "Host(`${API_ALIAS}.${DOMAIN}`)"
 
 
 ##############################
