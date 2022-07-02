@@ -396,7 +396,7 @@ services:
     networks:
       - nw-traefik
     depends_on:
-      - in-memory-db
+      - cloud-app
     volumes:
       - $DATA_PATH/$API_DATA:/code/app
     environment:
