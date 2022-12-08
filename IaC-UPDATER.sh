@@ -42,7 +42,9 @@ if [ "" = "$PKG_OK" ]; then
 fi
 
 # append extra configuration values
-printf "\n${PURPLE} ADDING EXTRA VALUES AND RESTARTING NEXTCLOUD CONTAINER IF NEEDED \n\n${NC}"
+printf "\n${PURPLE} DB FIX, ADDING EXTRA VALUES AND RESTARTING NEXTCLOUD CONTAINER IF NEEDED \n\n${NC}"
+docker-compose exec --user www-data cloud-app /var/www/html/occ db:add-missing-indices
+docker-compose exec --user www-data cloud-app /var/www/html/occ db:convert-filecache-bigint
 WORKSPACE_AVAILABLE=$(docker-compose exec --user www-data cloud-app /var/www/html/occ config:app:get text workspace_available | head -c1)
 INTERNED_STRINGS_BUFFER=$(docker-compose exec cloud-app awk -F "=" '/opcache.interned_strings_buffer/ {print $2}' /usr/local/etc/php/conf.d/opcache-recommended.ini | head -c2)
 VALUES_CHANGED=false
