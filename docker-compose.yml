@@ -10,7 +10,7 @@ services:
   vpn:
     image: lscr.io/linuxserver/wireguard
     container_name: wireguard
-    restart: unless-stopped
+    restart: always
     networks:
       - nw-traefik
     ports:
@@ -40,9 +40,9 @@ services:
 ###########################
   traefik:
     # The official v2 Traefik docker image
-    image: traefik:v2.6
-    container_name: traefik--2-6
-    restart: unless-stopped
+    image: traefik:v3.0
+    container_name: traefik--3-0
+    restart: always
     command:
       --global.checknewversion=true
       --global.sendanonymoususage=false
@@ -96,7 +96,7 @@ services:
     # A container that exposes an API to show its IP address
     image: traefik/whoami
     container_name: whoami
-    restart: unless-stopped
+    restart: always
     networks:
       - nw-traefik
     depends_on:
@@ -116,7 +116,7 @@ services:
     # A container that exposes an API to show its IP address
     image: lscr.io/linuxserver/code-server
     container_name: code-server
-    restart: unless-stopped
+    restart: always
     networks:
       - nw-traefik
     depends_on:
@@ -141,9 +141,9 @@ services:
 ######## pihole-app ########
 ############################
   pihole-app:
-    image: pihole/pihole:latest
-    container_name: pihole
-    restart: unless-stopped
+    image: pihole/pihole:2023.01.10
+    container_name: pihole--2023-01-10
+    restart: always
     network_mode: host
     depends_on:
       - traefik
@@ -184,10 +184,10 @@ services:
 ####### smarthome-app #######
 #############################
   smarthome-app:
-    image: iobroker/iobroker
-    container_name: iobroker
+    image: iobroker/iobroker:v7.2.0
+    container_name: iobroker--7-2-0
     hostname: $HOSTNAME
-    restart: unless-stopped
+    restart: always
     network_mode: host
     depends_on:
       - traefik
@@ -210,9 +210,9 @@ services:
 ############ db ############
 ############################
   db:
-    image: mariadb
-    container_name: mariadb
-    restart: unless-stopped
+    image: mariadb:10.6.11
+    container_name: mariadb--10-6-11
+    restart: always
     command: 
       --transaction-isolation=READ-COMMITTED
       --binlog-format=ROW
@@ -236,7 +236,7 @@ services:
   db-app:
     image: adminer
     container_name: adminer
-    restart: unless-stopped
+    restart: always
     networks:
       - nw-traefik
     ports:
@@ -249,9 +249,9 @@ services:
 ####### in-memory-db #######
 ############################
   in-memory-db:
-    image: redis
-    container_name: redis
-    restart: unless-stopped
+    image: redis:7.0.8
+    container_name: redis--7-0-8
+    restart: always
     command: redis-server /usr/local/etc/redis/redis.conf
     networks:
       - nw-traefik
@@ -266,9 +266,9 @@ services:
 ######### homepage #########
 ############################
   homepage:
-    image: wordpress
-    container_name: wordpress
-    restart: unless-stopped
+    image: wordpress:6.1.1
+    container_name: wordpress--6-1-1
+    restart: always
     networks:
       - nw-traefik
     depends_on:
@@ -294,9 +294,9 @@ services:
 ######## cloud-app ########
 ###########################
   cloud-app:
-    image: nextcloud:25.0.2
-    container_name: nextcloud--25-0-2
-    restart: unless-stopped
+    image: nextcloud:25.0.3
+    container_name: nextcloud--25-0-3
+    restart: always
     networks:
       - nw-traefik
     depends_on:
@@ -354,10 +354,10 @@ services:
 ######## plex-app ########
 ##########################
   plex-app:
-    image: lscr.io/linuxserver/plex:latest
-    container_name: plex
+    image: lscr.io/linuxserver/plex:1.30.2
+    container_name: plex--1-30-2
     hostname: ${HOSTNAME}
-    restart: unless-stopped
+    restart: always
     networks:
       - nw-traefik
     ports:
@@ -392,7 +392,7 @@ services:
     build: ./config/fastapi/
     image: api-app:latest
     container_name: fastapi
-    restart: unless-stopped
+    restart: always
     networks:
       - nw-traefik
     depends_on:
