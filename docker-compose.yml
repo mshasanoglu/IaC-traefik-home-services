@@ -8,8 +8,8 @@ services:
 ############ vpn ############
 #############################
   vpn:
-    image: lscr.io/linuxserver/wireguard
-    container_name: wireguard
+    image: lscr.io/linuxserver/wireguard:${WIREGUARD_VERSION}
+    container_name: wireguard--${WIREGUARD_VERSION}
     restart: always
     networks:
       - nw-traefik
@@ -39,8 +39,8 @@ services:
 ######### traefik #########
 ###########################
   traefik:
-    image: traefik:v3.0
-    container_name: traefik--3-0
+    image: traefik:${TRAEFIK_VERSION}
+    container_name: traefik--${TRAEFIK_VERSION}
     restart: always
     command:
       --global.checknewversion=true
@@ -93,8 +93,8 @@ services:
 ############################
   whoami-app:
     # A container that exposes an API to show its IP address
-    image: traefik/whoami
-    container_name: whoami
+    image: traefik/whoami:${TRAEFIK_WHOAMI_VERSION}
+    container_name: whoami--${TRAEFIK_WHOAMI_VERSION}
     restart: always
     networks:
       - nw-traefik
@@ -113,8 +113,8 @@ services:
 #############################
   vs-code-app:
     # A container that exposes an API to show its IP address
-    image: lscr.io/linuxserver/code-server
-    container_name: code-server
+    image: lscr.io/linuxserver/code-server:${VS_CODE_VERSION}
+    container_name: code-server--${VS_CODE_VERSION}
     restart: always
     networks:
       - nw-traefik
@@ -140,8 +140,8 @@ services:
 ######## pihole-app ########
 ############################
   pihole-app:
-    image: pihole/pihole:2023.03.1
-    container_name: pihole--2023-03-1
+    image: pihole/pihole:${PIHOLE_VERSION}
+    container_name: pihole--${PIHOLE_VERSION}
     restart: always
     network_mode: host
     depends_on:
@@ -183,8 +183,8 @@ services:
 ####### smarthome-app #######
 #############################
   smarthome-app:
-    image: iobroker/iobroker:v8.0.0
-    container_name: iobroker--8-0-0
+    image: iobroker/iobroker:${IOBROKER_VERSION}
+    container_name: iobroker--${IOBROKER_VERSION}
     hostname: $HOSTNAME
     restart: always
     network_mode: host
@@ -209,8 +209,8 @@ services:
 ############ db ############
 ############################
   db:
-    image: mariadb:10.7.8
-    container_name: mariadb--10-7.8
+    image: mariadb:${MYSQL_VERSION}
+    container_name: mariadb--${MYSQL_VERSION}
     restart: always
     command: 
       --transaction-isolation=READ-COMMITTED
@@ -233,8 +233,8 @@ services:
 ########## db-app ##########
 ############################
   db-app:
-    image: adminer
-    container_name: adminer
+    image: adminer:${ADMINER_VERSION}
+    container_name: adminer--${ADMINER_VERSION}
     restart: always
     networks:
       - nw-traefik
@@ -248,8 +248,8 @@ services:
 ####### in-memory-db #######
 ############################
   in-memory-db:
-    image: redis:7.0.8
-    container_name: redis--7-0-8
+    image: redis:${REDIS_VERSION}
+    container_name: redis--${REDIS_VERSION}
     restart: always
     command: redis-server /usr/local/etc/redis/redis.conf
     networks:
@@ -265,8 +265,8 @@ services:
 ######### homepage #########
 ############################
   homepage:
-    image: wordpress:6.1.1
-    container_name: wordpress--6-1-1
+    image: wordpress:${WORDPRESS_VERSION}
+    container_name: wordpress--${WORDPRESS_VERSION}
     restart: always
     networks:
       - nw-traefik
@@ -293,8 +293,8 @@ services:
 ######## cloud-app ########
 ###########################
   cloud-app:
-    image: nextcloud:26.0.0
-    container_name: nextcloud--26-0-0
+    image: nextcloud:${NEXTCLOUD_VERSION}
+    container_name: nextcloud--${NEXTCLOUD_VERSION}
     restart: always
     networks:
       - nw-traefik
@@ -353,8 +353,8 @@ services:
 ######## plex-app ########
 ##########################
   plex-app:
-    image: lscr.io/linuxserver/plex:1.30.2
-    container_name: plex--1-30-2
+    image: lscr.io/linuxserver/plex:${PLEX_VERSION}
+    container_name: plex--${PLEX_VERSION}
     hostname: ${HOSTNAME}
     restart: always
     networks:
