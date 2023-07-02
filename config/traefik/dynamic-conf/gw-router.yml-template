@@ -2,7 +2,6 @@ http:
   routers:
     gw-router:
       service: gw-router
-      tls: true
       tls:
         certResolver: "prod"
       rule: "Host(`router.mydomain.de`)"
