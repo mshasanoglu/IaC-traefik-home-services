@@ -7,35 +7,35 @@ services:
 #############################
 ############ vpn ############
 #############################
-  vpn:
-    image: lscr.io/linuxserver/wireguard:${WIREGUARD_VERSION}
-    container_name: wireguard--${WIREGUARD_VERSION}
-    restart: always
-    networks:
-      - nw-traefik
-    dns:
-      - 1.1.1.1
-      - 1.0.0.1
-    ports:
-      - ${WIREGUARD_SERVERPORT}:${WIREGUARD_SERVERPORT}/udp
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE
-    sysctls:
-      net.ipv4.conf.all.src_valid_mark: 1
-    volumes:
-      - /lib/modules:/lib/modules
-      - $DATA_PATH/vpn:/config
-    environment:
-      # DYNAMIC
-      TZ: ${TZ}
-      PUID: ${PUID}
-      PGID: ${PGID}
-      SERVERURL: ${DOMAIN}
-      SERVERPORT: ${WIREGUARD_SERVERPORT}
-      PEERS: ${WIREGUARD_PEERS}
-      PEERDNS: ${WIREGUARD_PEERDNS}
-      INTERNAL_SUBNET: ${WIREGUARD_INTERNAL_SUBNET}
+  # vpn:
+  #   image: lscr.io/linuxserver/wireguard:${WIREGUARD_VERSION}
+  #   container_name: wireguard--${WIREGUARD_VERSION}
+  #   restart: always
+  #   networks:
+  #     - nw-traefik
+  #   dns:
+  #     - 1.1.1.1
+  #     - 1.0.0.1
+  #   ports:
+  #     - ${WIREGUARD_SERVERPORT}:${WIREGUARD_SERVERPORT}/udp
+  #   cap_add:
+  #     - NET_ADMIN
+  #     - SYS_MODULE
+  #   sysctls:
+  #     net.ipv4.conf.all.src_valid_mark: 1
+  #   volumes:
+  #     - /lib/modules:/lib/modules
+  #     - $DATA_PATH/vpn:/config
+  #   environment:
+  #     # DYNAMIC
+  #     TZ: ${TZ}
+  #     PUID: ${PUID}
+  #     PGID: ${PGID}
+  #     SERVERURL: ${DOMAIN}
+  #     SERVERPORT: ${WIREGUARD_SERVERPORT}
+  #     PEERS: ${WIREGUARD_PEERS}
+  #     PEERDNS: ${WIREGUARD_PEERDNS}
+  #     INTERNAL_SUBNET: ${WIREGUARD_INTERNAL_SUBNET}
 
 
 ###########################

@@ -26,7 +26,7 @@ export BASIC_AUTH_CREDS=$(htpasswd -nb $BASIC_AUTH_USERNAME $BASIC_AUTH_PASSWORD
 
 # start building applications
 printf "\n${PURPLE} UPDATING SERVICES\n\n${NC}"
-docker-compose up -d
+docker-compose up -d --remove-orphans
 printf "\n${PURPLE} ALL SERVICES UPDATED \n\n${NC}"
 
 # update the cloud container to install missing package on nextcloud
