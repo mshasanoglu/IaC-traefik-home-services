@@ -36,13 +36,13 @@ done
 
 # start building applications
 printf "\n${PURPLE} STARTING SERVICES \n\n${NC}"
-docker-compose up -d
+docker compose up -d
 printf "\n${PURPLE} ALL SERVICES STARTED \n\n${NC}"
 
 # update the cloud container to install missing package on nextcloud
 printf "\n${PURPLE} UPDATING CONTAINER PACKEGES AND INSTALLING REQUIRED PACKAGES FOR NEXTCLOUD \n\n${NC}"
-docker-compose exec cloud-app apt -y update
-docker-compose exec cloud-app apt -y install libmagickcore-6.q16-6-extra
+docker compose exec cloud-app apt -y update
+docker compose exec cloud-app apt -y install libmagickcore-6.q16-6-extra
 printf "\n${PURPLE} REQUIRED PACKAGES FOR NEXTCLOUD INSTALLED \n\n${NC}"
 
 # give nextcloud container time to append extra configuration values
@@ -52,8 +52,8 @@ printf "\n${PURPLE} ADDING EXTRA VALUES AND RESTARTING NEXTCLOUD CONTAINER\n\n${
 sed -i "/overwrite.cli.url/d" $DATA_PATH/cloud-app/config/config.php
 sed -i "/);/i \  'overwrite.cli.url' => '${NEXTCLOUD_PROTOCOL}://${NEXTCLOUD_ALIAS}.${DOMAIN}'," $DATA_PATH/cloud-app/config/config.php
 sed -i "/);/i \  'default_phone_region' => '${PHONE_REGION}'," $DATA_PATH/cloud-app/config/config.php
-docker-compose exec --user www-data cloud-app /var/www/html/occ config:app:set text workspace_available --value=0
-docker-compose exec cloud-app sed -i "/opcache.interned_strings_buffer/c\opcache.interned_strings_buffer=32" /usr/local/etc/php/conf.d/opcache-recommended.ini
-docker-compose restart cloud-app 
+docker compose exec --user www-data cloud-app /var/www/html/occ config:app:set text workspace_available --value=0
+docker compose exec cloud-app sed -i "/opcache.interned_strings_buffer/c\opcache.interned_strings_buffer=32" /usr/local/etc/php/conf.d/opcache-recommended.ini
+docker compose restart cloud-app 
 
 printf "\n${CYAN} PIPELINE DONE \n\n${NC}"
