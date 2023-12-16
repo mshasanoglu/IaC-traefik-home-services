@@ -8,6 +8,8 @@ services:
 ############ vpn ############
 #############################
   vpn:
+    profiles:
+      - $WIREGUARD_PROFILE_NAME
     image: lscr.io/linuxserver/wireguard:${WIREGUARD_VERSION}
     container_name: wireguard--${WIREGUARD_VERSION}
     restart: always
@@ -51,12 +53,17 @@ services:
       --entrypoints.web.address=:80
       --entrypoints.web.http.redirections.entrypoint.to=websecure
       --entrypoints.web.http.redirections.entrypoint.scheme=https
+      --entrypoints.web.http.redirections.entrypoint.permanent=true
       --entrypoints.websecure.address=:443
       --entrypoints.traefik.address=:${TRAEFIK_WEB_PORT}
       --certificatesresolvers.prod.acme.email=${SMTP_NAME}
       --certificatesresolvers.prod.acme.storage=/ssl-certs/acme.json
       --certificatesresolvers.prod.acme.caserver=https://acme-v02.api.letsencrypt.org/directory
       --certificatesresolvers.prod.acme.httpchallenge.entrypoint=web
+      --certificatesresolvers.staging.acme.email=${SMTP_NAME}
+      --certificatesresolvers.staging.acme.storage=/ssl-certs/acme-staging.json
+      --certificatesresolvers.staging.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
+      --certificatesresolvers.staging.acme.httpchallenge.entrypoint=web
       --api.insecure=true
       --providers.docker.exposedbydefault=false
       --providers.file.directory=/etc/traefik/dynamic-conf
@@ -81,17 +88,20 @@ services:
       - ./config/traefik/dynamic-conf:/etc/traefik/dynamic-conf
       # Traefik ssl certs 
       - $DATA_PATH/ssl-certs:/ssl-certs
+    environment:
+      # DYNAMIC
+      TZ: ${TZ}
     labels:
       traefik.enable: true
       # ROUTERS
       traefik.http.routers.traefik.tls: true
-      traefik.http.routers.traefik.tls.certresolver: "prod"
+      traefik.http.routers.traefik.tls.certresolver: ${ENV}
       traefik.http.routers.traefik.rule: "Host(`${TRAEFIK_ALIAS}.${DOMAIN}`)"
-      traefik.http.routers.traefik.middlewares: traefik-auth
+      traefik.http.routers.traefik.middlewares: "traefik-auth"
       # SERVICES
       traefik.http.services.traefik.loadbalancer.server.port: ${TRAEFIK_WEB_PORT}
       # MIDDLEWARES
-      traefik.http.middlewares.traefik-auth.basicauth.users: ${BASIC_AUTH_CREDS}
+      traefik.http.middlewares.traefik-auth.basicauth.users: ${BASIC_AUTH_CREDS:-}
 
 
 ############################
@@ -99,8 +109,10 @@ services:
 ############################
   whoami-app:
     # A container that exposes an API to show its IP address
-    image: traefik/whoami:${TRAEFIK_WHOAMI_VERSION}
-    container_name: whoami--${TRAEFIK_WHOAMI_VERSION}
+    profiles:
+      - $WHOAMI_PROFILE_NAME
+    image: traefik/whoami:${WHOAMI_VERSION}
+    container_name: whoami--${WHOAMI_VERSION}
     restart: always
     networks:
       - nw-traefik
@@ -109,19 +121,23 @@ services:
       - 1.0.0.1
     depends_on:
       - traefik
+    environment:
+      # DYNAMIC
+      TZ: ${TZ}
     labels:
       traefik.enable: true
       # ROUTERS
       traefik.http.routers.whoami-app.tls: true
-      traefik.http.routers.whoami-app.tls.certresolver: "prod"
-      traefik.http.routers.whoami-app.rule: "Host(`whoami.${DOMAIN}`)"
+      traefik.http.routers.whoami-app.tls.certresolver: ${ENV}
+      traefik.http.routers.whoami-app.rule: "Host(`${WHOAMI_ALIAS}.${DOMAIN}`)"
 
 
 #############################
 ######## vs-code-app ########
 #############################
   vs-code-app:
-    # A container that exposes an API to show its IP address
+    profiles:
+      - $VS_CODE_PROFILE_NAME
     image: lscr.io/linuxserver/code-server:${VS_CODE_VERSION}
     container_name: code-server--${VS_CODE_VERSION}
     restart: always
@@ -144,7 +160,7 @@ services:
       traefik.enable: true
       # ROUTERS
       traefik.http.routers.vs-code-app.tls: true
-      traefik.http.routers.vs-code-app.tls.certresolver: "prod"
+      traefik.http.routers.vs-code-app.tls.certresolver: ${ENV}
       traefik.http.routers.vs-code-app.rule: "Host(`${VS_CODE_ALIAS}.${DOMAIN}`)"
 
 
@@ -152,6 +168,8 @@ services:
 ######## pihole-app ########
 ############################
   pihole-app:
+    profiles:
+      - $PIHOLE_PROFILE_NAME
     image: pihole/pihole:${PIHOLE_VERSION}
     container_name: pihole--${PIHOLE_VERSION}
     restart: always
@@ -180,16 +198,16 @@ services:
       PIHOLE_DOMAIN: ${PIHOLE_DOMAIN}
       DHCP_rapid_commit: ${PIHOLE_DHCP_RAPID_COMMIT}
       DHCP_IPv6: ${PIHOLE_DHCP_IPV6}
-      VIRTUAL_HOST: ${PIHOLE_ALIAS}.${DOMAIN}
       WEBTHEME: ${PIHOLE_WEBTHEME}
       INTERFACE: ${PIHOLE_INTERFACE}
       WEB_PORT: ${PIHOLE_WEB_PORT}
       DNSMASQ_LISTENING: ${PIHOLE_DNSMASQ_LISTENING}
+      VIRTUAL_HOST: ${PIHOLE_ALIAS}.${DOMAIN}
     labels:
       traefik.enable: true
       # ROUTERS
       traefik.http.routers.pihole-app.tls: true
-      traefik.http.routers.pihole-app.tls.certresolver: "prod"
+      traefik.http.routers.pihole-app.tls.certresolver: ${ENV}
       traefik.http.routers.pihole-app.rule: "Host(`${PIHOLE_ALIAS}.${DOMAIN}`)"
       # SERVICES
       traefik.http.services.pihole-app.loadbalancer.server.port: ${PIHOLE_WEB_PORT}
@@ -199,6 +217,8 @@ services:
 ####### smarthome-app #######
 #############################
   smarthome-app:
+    profiles:
+      - $IOBROKER_PROFILE_NAME
     image: iobroker/iobroker:${IOBROKER_VERSION}
     container_name: iobroker--${IOBROKER_VERSION}
     hostname: $HOSTNAME
@@ -215,7 +235,7 @@ services:
       traefik.enable: true
       # ROUTERS
       traefik.http.routers.smarthome-app.tls: true
-      traefik.http.routers.smarthome-app.tls.certresolver: "prod"
+      traefik.http.routers.smarthome-app.tls.certresolver: ${ENV}
       traefik.http.routers.smarthome-app.rule: "Host(`${IOBROKER_ALIAS}.${DOMAIN}`)"
       # SERVICES
       traefik.http.services.smarthome-app.loadbalancer.server.port: 8081
@@ -225,6 +245,8 @@ services:
 ############ db ############
 ############################
   db:
+    profiles:
+      - $MYSQL_PROFILE_NAME
     image: mariadb:${MYSQL_VERSION}
     container_name: mariadb--${MYSQL_VERSION}
     restart: always
@@ -243,6 +265,7 @@ services:
       - $DATA_PATH/db/mysql:/var/lib/mysql
     environment:
       # DYNAMIC
+      TZ: ${TZ}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
@@ -252,6 +275,8 @@ services:
 ########## db-app ##########
 ############################
   db-app:
+    profiles:
+      - $MYSQL_PROFILE_NAME
     image: adminer:${ADMINER_VERSION}
     container_name: adminer--${ADMINER_VERSION}
     restart: always
@@ -264,12 +289,17 @@ services:
       - 8080:8080/tcp
     depends_on:
       - db
+    environment:
+      # DYNAMIC
+      TZ: ${TZ}
 
 
 ############################
 ####### in-memory-db #######
 ############################
   in-memory-db:
+    profiles:
+      - $MYSQL_PROFILE_NAME
     image: redis:${REDIS_VERSION}
     container_name: redis--${REDIS_VERSION}
     restart: always
@@ -284,12 +314,17 @@ services:
     volumes:
       - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
       - $DATA_PATH/in-memory-db:/data
+    environment:
+      # DYNAMIC
+      TZ: ${TZ}
 
 
 ############################
 ######### homepage #########
 ############################
   homepage:
+    profiles:
+      - $WORDPRESS_PROFILE_NAME
     image: wordpress:${WORDPRESS_VERSION}
     container_name: wordpress--${WORDPRESS_VERSION}
     restart: always
@@ -300,20 +335,21 @@ services:
       - 1.0.0.1
     depends_on:
       - db-app
+    volumes:
+      - $DATA_PATH/homepage:/var/www/html
     environment:
       # STATIC
       WORDPRESS_DB_HOST: db
       # DYNAMIC
+      TZ: ${TZ}
       WORDPRESS_DB_USER: ${MYSQL_USER}
       WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
       WORDPRESS_DB_NAME: ${WORDPRESS_DB}
-    volumes:
-      - $DATA_PATH/homepage:/var/www/html
     labels:
       traefik.enable: true
       # ROUTERS
       traefik.http.routers.homepage.tls: true
-      traefik.http.routers.homepage.tls.certresolver: "prod"
+      traefik.http.routers.homepage.tls.certresolver: ${ENV}
       traefik.http.routers.homepage.rule: "Host(`${DOMAIN}`) || Host(`${WORDPRESS_ALIAS}.${DOMAIN}`)"
 
 
@@ -321,9 +357,13 @@ services:
 ######## cloud-app ########
 ###########################
   cloud-app:
+    profiles:
+      - $NEXTCLOUD_PROFILE_NAME
     image: nextcloud:${NEXTCLOUD_VERSION}
     container_name: nextcloud--${NEXTCLOUD_VERSION}
     restart: always
+    command: /bin/bash -c '${NEXTCLOUD_STARTUP_CMD}'
+    hostname: ${NEXTCLOUD_ALIAS}.${DOMAIN}
     networks:
       - nw-traefik
     dns:
@@ -336,6 +376,7 @@ services:
       - $DATA_PATH/cloud-app/custom_apps:/var/www/html/custom_apps
       - $DATA_PATH/cloud-app/config:/var/www/html/config
       - $DATA_PATH/cloud-app/data:/var/www/html/data
+      - ./config/nextcloud/before-starting:/docker-entrypoint-hooks.d/before-starting
     environment:
       # STATIC
       MYSQL_HOST: db
@@ -344,12 +385,20 @@ services:
       APACHE_DISABLE_REWRITE_IP: 1
       TRUSTED_PROXIES: 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
       # DYNAMIC
+      TZ: ${TZ}
+      PHONE_REGION: ${PHONE_REGION}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_DATABASE: ${NEXTCLOUD_DB}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_AUTHTYPE: ${SMTP_AUTHTYPE}
+      SMTP_NAME: ${SMTP_NAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
       NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_ALIAS}.${DOMAIN}
       OVERWRITEHOST: ${NEXTCLOUD_ALIAS}.${DOMAIN}
       OVERWRITEPROTOCOL: ${NEXTCLOUD_PROTOCOL}
+      MYSQL_DATABASE: ${NEXTCLOUD_DB}
       NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
       NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
       MAIL_FROM_ADDRESS: ${NEXTCLOUD_MAIL_FROM_ADDRESS}
@@ -357,17 +406,17 @@ services:
       PHP_MEMORY_LIMIT: ${NEXTCLOUD_PHP_MEMORY_LIMIT}
       PHP_UPLOAD_LIMIT: ${NEXTCLOUD_PHP_UPLOAD_LIMIT}
       APACHE_BODY_LIMIT: ${NEXTCLOUD_APACHE_BODY_LIMIT}
-      SMTP_SECURE: ${SMTP_SECURE}
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_AUTHTYPE: ${SMTP_AUTHTYPE}
-      SMTP_NAME: ${SMTP_NAME}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      # NEXTCLOUD CONFIG
+      NEXTCLOUD_CONFIG_ACTIVITY: ${NEXTCLOUD_CONFIG_ACTIVITY}
+      NEXTCLOUD_CONFIG_CIRCLES: ${NEXTCLOUD_CONFIG_CIRCLES}
+      NEXTCLOUD_CONFIG_RECOMMENDATIONS: ${NEXTCLOUD_CONFIG_RECOMMENDATIONS}
+      NEXTCLOUD_CONFIG_WORKSPACE: ${NEXTCLOUD_CONFIG_WORKSPACE}
+      NEXTCLOUD_CONFIG_USERSTATUS: ${NEXTCLOUD_CONFIG_USERSTATUS}
     labels:
       traefik.enable: true
       # ROUTERS
       traefik.http.routers.cloud-app.tls: true
-      traefik.http.routers.cloud-app.tls.certresolver: "prod"
+      traefik.http.routers.cloud-app.tls.certresolver: ${ENV}
       traefik.http.routers.cloud-app.rule: "Host(`${NEXTCLOUD_ALIAS}.${DOMAIN}`)"
       traefik.http.routers.cloud-app.middlewares: "cloud-app-headers,cloud-app-redirectregex"
       # MIDDLEWARES headers
@@ -387,6 +436,8 @@ services:
 ######## plex-app ########
 ##########################
   plex-app:
+    profiles:
+      - $PLEX_PROFILE_NAME
     image: lscr.io/linuxserver/plex:${PLEX_VERSION}
     container_name: plex--${PLEX_VERSION}
     hostname: ${HOSTNAME}
@@ -415,7 +466,7 @@ services:
       traefik.enable: true
       # ROUTERS
       traefik.http.routers.plex-app.tls: true
-      traefik.http.routers.plex-app.tls.certresolver: "prod"
+      traefik.http.routers.plex-app.tls.certresolver: ${ENV}
       traefik.http.routers.plex-app.rule: "Host(`${PLEX_ALIAS}.${DOMAIN}`)"
       # SERVICES
       traefik.http.services.plex-app.loadbalancer.server.port: 32400
@@ -425,6 +476,8 @@ services:
 ######## api-app ##########
 ###########################
   api-app:
+    profiles:
+      - $API_PROFILE_NAME
     build: ./config/fastapi/
     image: api-app:latest
     container_name: fastapi
@@ -448,7 +501,7 @@ services:
       traefik.enable: true
       # ROUTERS
       traefik.http.routers.api-app.tls: true
-      traefik.http.routers.api-app.tls.certresolver: "prod"
+      traefik.http.routers.api-app.tls.certresolver: ${ENV}
       traefik.http.routers.api-app.rule: "Host(`${API_ALIAS}.${DOMAIN}`)"
 
 
