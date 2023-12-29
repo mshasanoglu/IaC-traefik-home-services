@@ -12,19 +12,23 @@ services:
       - $WIREGUARD_PROFILE_NAME
     image: lscr.io/linuxserver/wireguard:${WIREGUARD_VERSION}
     container_name: wireguard--${WIREGUARD_VERSION}
-    restart: always
+    restart: unless-stopped
     networks:
       - nw-traefik
     dns:
       - 1.1.1.1
       - 1.0.0.1
     ports:
-      - ${WIREGUARD_SERVERPORT}:${WIREGUARD_SERVERPORT}/udp
+      - ${WIREGUARD_SERVERPORT:-51820}:51820/udp
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
     sysctls:
       net.ipv4.conf.all.src_valid_mark: 1
+    healthcheck:
+      test: wg show 2>&1 | grep 'listening port.*51820' || exit 1
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
     volumes:
       - /lib/modules:/lib/modules
       - $DATA_PATH/vpn:/config
@@ -46,14 +50,13 @@ services:
   traefik:
     image: traefik:${TRAEFIK_VERSION}
     container_name: traefik--${TRAEFIK_VERSION}
-    restart: always
+    restart: unless-stopped
     command:
       --global.checknewversion=true
       --global.sendanonymoususage=false
       --entrypoints.web.address=:80
       --entrypoints.web.http.redirections.entrypoint.to=websecure
       --entrypoints.web.http.redirections.entrypoint.scheme=https
-      --entrypoints.web.http.redirections.entrypoint.permanent=true
       --entrypoints.websecure.address=:443
       --entrypoints.traefik.address=:${TRAEFIK_WEB_PORT}
       --certificatesresolvers.prod.acme.email=${SMTP_NAME}
@@ -65,6 +68,7 @@ services:
       --certificatesresolvers.staging.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
       --certificatesresolvers.staging.acme.httpchallenge.entrypoint=web
       --api.insecure=true
+      --ping=true
       --providers.docker.exposedbydefault=false
       --providers.file.directory=/etc/traefik/dynamic-conf
     networks:
@@ -81,6 +85,10 @@ services:
       - 443:443/tcp
       # The Web UI (enabled by --api.insecure=true)
       - ${TRAEFIK_WEB_PORT}:${TRAEFIK_WEB_PORT}/tcp
+    healthcheck:
+      test: wget -q --spider http://localhost:${TRAEFIK_WEB_PORT}/ping
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
     volumes:
       # So that Traefik can listen to the Docker events
       - /var/run/docker.sock:/var/run/docker.sock
@@ -111,16 +119,27 @@ services:
     # A container that exposes an API to show its IP address
     profiles:
       - $WHOAMI_PROFILE_NAME
-    image: traefik/whoami:${WHOAMI_VERSION}
+    image: traefik/whoami/modified:${WHOAMI_VERSION}
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM busybox:latest AS builder
+        FROM traefik/whoami:${WHOAMI_VERSION}
+        COPY --from=builder / /
     container_name: whoami--${WHOAMI_VERSION}
-    restart: always
+    restart: unless-stopped
     networks:
       - nw-traefik
     dns:
       - 1.1.1.1
       - 1.0.0.1
     depends_on:
-      - traefik
+      traefik:
+        condition: service_healthy
+    healthcheck:
+      test: wget -q --spider http://localhost/health
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
     environment:
       # DYNAMIC
       TZ: ${TZ}
@@ -140,14 +159,19 @@ services:
       - $VS_CODE_PROFILE_NAME
     image: lscr.io/linuxserver/code-server:${VS_CODE_VERSION}
     container_name: code-server--${VS_CODE_VERSION}
-    restart: always
+    restart: unless-stopped
     networks:
       - nw-traefik
     dns:
       - 1.1.1.1
       - 1.0.0.1
     depends_on:
-      - traefik
+      traefik:
+        condition: service_healthy
+    healthcheck:
+      test: curl -f http://localhost:8443/healthz
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
     volumes:
       - $DATA_PATH/vs-code-app:/config
     environment:
@@ -156,6 +180,8 @@ services:
       PGID: ${PGID}
       PASSWORD: ${VS_CODE_PASSWORD}
       SUDO_PASSWORD: ${VS_CODE_SUDO_PASSWORD}
+      PROXY_DOMAIN: ${VS_CODE_ALIAS}.${DOMAIN}
+      DEFAULT_WORKSPACE: /config/workspace
     labels:
       traefik.enable: true
       # ROUTERS
@@ -172,12 +198,16 @@ services:
       - $PIHOLE_PROFILE_NAME
     image: pihole/pihole:${PIHOLE_VERSION}
     container_name: pihole--${PIHOLE_VERSION}
-    restart: always
+    restart: unless-stopped
     network_mode: host
-    depends_on:
-      - traefik
     cap_add:
       - NET_ADMIN
+    depends_on:
+      traefik:
+        condition: service_healthy
+    healthcheck:
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
     volumes:
       - $DATA_PATH/pihole-app/etc-pihole:/etc/pihole
       - $DATA_PATH/pihole-app/etc-dnsmasq.d:/etc/dnsmasq.d
@@ -222,15 +252,20 @@ services:
     image: iobroker/iobroker:${IOBROKER_VERSION}
     container_name: iobroker--${IOBROKER_VERSION}
     hostname: $HOSTNAME
-    restart: always
+    restart: unless-stopped
     network_mode: host
     depends_on:
-      - traefik
+      traefik:
+        condition: service_healthy
+    healthcheck:
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
     volumes:
       - $DATA_PATH/smarthome-app:/opt/iobroker
     environment:
       # DYNAMIC
       TZ: ${TZ}
+      IOB_ADMINPORT: ${IOBROKER_ADMINPORT}
     labels:
       traefik.enable: true
       # ROUTERS
@@ -238,7 +273,7 @@ services:
       traefik.http.routers.smarthome-app.tls.certresolver: ${ENV}
       traefik.http.routers.smarthome-app.rule: "Host(`${IOBROKER_ALIAS}.${DOMAIN}`)"
       # SERVICES
-      traefik.http.services.smarthome-app.loadbalancer.server.port: 8081
+      traefik.http.services.smarthome-app.loadbalancer.server.port: ${IOBROKER_ADMINPORT}
       
 
 ############################
@@ -249,7 +284,7 @@ services:
       - $MYSQL_PROFILE_NAME
     image: mariadb:${MYSQL_VERSION}
     container_name: mariadb--${MYSQL_VERSION}
-    restart: always
+    restart: unless-stopped
     command: 
       --transaction-isolation=READ-COMMITTED
       --binlog-format=ROW
@@ -259,7 +294,12 @@ services:
       - 1.1.1.1
       - 1.0.0.1
     depends_on:
-      - traefik
+      traefik:
+        condition: service_healthy
+    healthcheck:
+      test: healthcheck.sh --connect --innodb_initialized
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
     volumes:
       - $DATA_PATH/db/init:/docker-entrypoint-initdb.d
       - $DATA_PATH/db/mysql:/var/lib/mysql
@@ -277,18 +317,31 @@ services:
   db-app:
     profiles:
       - $MYSQL_PROFILE_NAME
-    image: adminer:${ADMINER_VERSION}
+    image: adminer/modified:${ADMINER_VERSION}
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM debian:bullseye-slim AS builder
+        RUN apt update && apt install -y curl && rm -rf /var/lib/apt/lists/*
+        FROM adminer:${ADMINER_VERSION}
+        COPY --from=builder /usr/bin/curl /usr/bin/curl
+        COPY --from=builder /usr/lib/aarch64-linux-gnu/* /usr/lib/aarch64-linux-gnu/
     container_name: adminer--${ADMINER_VERSION}
-    restart: always
+    restart: unless-stopped
     networks:
       - nw-traefik
     dns:
       - 1.1.1.1
       - 1.0.0.1
     ports:
-      - 8080:8080/tcp
+      - ${ADMINER_PORT:-8080}:8080/tcp
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: curl -f http://localhost:8080
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
     environment:
       # DYNAMIC
       TZ: ${TZ}
@@ -302,21 +355,124 @@ services:
       - $MYSQL_PROFILE_NAME
     image: redis:${REDIS_VERSION}
     container_name: redis--${REDIS_VERSION}
-    restart: always
-    command: redis-server /usr/local/etc/redis/redis.conf
+    restart: unless-stopped
+    command: redis-server --port ${REDIS_HOST_PORT}
     networks:
       - nw-traefik
     dns:
       - 1.1.1.1
       - 1.0.0.1
     depends_on:
-      - db-app
+      traefik:
+        condition: service_healthy
+    healthcheck:
+      test: redis-cli -p ${REDIS_HOST_PORT} ping
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
     volumes:
       - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
       - $DATA_PATH/in-memory-db:/data
     environment:
       # DYNAMIC
       TZ: ${TZ}
+
+
+###########################
+######## cloud-app ########
+###########################
+  cloud-app:
+    profiles:
+      - $NEXTCLOUD_PROFILE_NAME
+    image: nextcloud:${NEXTCLOUD_VERSION}
+    container_name: nextcloud--${NEXTCLOUD_VERSION}
+    restart: unless-stopped
+    command: /bin/bash -c '${NEXTCLOUD_STARTUP_CMD}'
+    hostname: ${NEXTCLOUD_ALIAS}.${DOMAIN}
+    networks:
+      - nw-traefik
+    dns:
+      - 1.1.1.1
+      - 1.0.0.1
+    depends_on:
+      db:
+        condition: service_healthy
+      in-memory-db:
+        condition: service_healthy
+    healthcheck:
+      test: curl -s http://localhost/status.php | grep '"installed":true' || exit 1
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
+    volumes:
+      - $DATA_PATH/cloud-app/html:/var/www/html
+      - $DATA_PATH/cloud-app/custom_apps:/var/www/html/custom_apps
+      - $DATA_PATH/cloud-app/config:/var/www/html/config
+      - $DATA_PATH/cloud-app/data:/var/www/html/data
+      - $DATA_PATH/cloud-app/cache:/var/cache
+      - ./config/nextcloud/pre-installation:/docker-entrypoint-hooks.d/pre-installation
+      - ./config/nextcloud/post-installation:/docker-entrypoint-hooks.d/post-installation
+      - ./config/nextcloud/before-starting:/docker-entrypoint-hooks.d/before-starting
+    environment:
+      # STATIC
+      MYSQL_HOST: db
+      REDIS_HOST: in-memory-db
+      APACHE_DISABLE_REWRITE_IP: 1
+      TRUSTED_PROXIES: 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
+      OVERWRITEWEBROOT: /
+      # DYNAMIC
+      TZ: ${TZ}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST_PORT: ${REDIS_HOST_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_AUTHTYPE: ${SMTP_AUTHTYPE}
+      SMTP_NAME: ${SMTP_NAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_ALIAS}.${DOMAIN}
+      OVERWRITEHOST: ${NEXTCLOUD_ALIAS}.${DOMAIN}
+      OVERWRITEPROTOCOL: ${NEXTCLOUD_PROTOCOL}
+      OVERWRITECLIURL: ${NEXTCLOUD_PROTOCOL}://${NEXTCLOUD_ALIAS}.${DOMAIN}
+      MYSQL_DATABASE: ${NEXTCLOUD_DB}
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      MAIL_FROM_ADDRESS: ${NEXTCLOUD_MAIL_FROM_ADDRESS}
+      MAIL_DOMAIN: ${NEXTCLOUD_MAIL_DOMAIN}
+      PHP_MEMORY_LIMIT: ${NEXTCLOUD_PHP_MEMORY_LIMIT}
+      PHP_UPLOAD_LIMIT: ${NEXTCLOUD_PHP_UPLOAD_LIMIT}
+      APACHE_BODY_LIMIT: ${NEXTCLOUD_APACHE_BODY_LIMIT}
+      # NEXTCLOUD CONFIG
+      NEXTCLOUD_CONFIG_ACTIVITY: ${NEXTCLOUD_CONFIG_ACTIVITY:-yes}
+      NEXTCLOUD_CONFIG_CIRCLES: ${NEXTCLOUD_CONFIG_CIRCLES:-yes}
+      NEXTCLOUD_CONFIG_COMMENTS: ${NEXTCLOUD_CONFIG_COMMENTS:-yes}
+      NEXTCLOUD_CONFIG_DASHBOARD: ${NEXTCLOUD_CONFIG_DASHBOARD:-yes}
+      NEXTCLOUD_CONFIG_FIRSTRUNWIZARD: ${NEXTCLOUD_CONFIG_FIRSTRUNWIZARD:-yes}
+      NEXTCLOUD_CONFIG_PHOTOS: ${NEXTCLOUD_CONFIG_PHOTOS:-yes}
+      NEXTCLOUD_CONFIG_RECOMMENDATIONS: ${NEXTCLOUD_CONFIG_RECOMMENDATIONS:-yes}
+      NEXTCLOUD_CONFIG_USER_STATUS: ${NEXTCLOUD_CONFIG_USER_STATUS:-yes}
+      NEXTCLOUD_CONFIG_WEATHER_STATUS: ${NEXTCLOUD_CONFIG_WEATHER_STATUS:-yes}
+      NEXTCLOUD_CONFIG_DEFAULT_LANGUAGE: ${NEXTCLOUD_CONFIG_DEFAULT_LANGUAGE:-en}
+      NEXTCLOUD_CONFIG_DEFAULT_LOCALE: ${NEXTCLOUD_CONFIG_DEFAULT_LOCALE:-en_US}
+      NEXTCLOUD_CONFIG_DEFAULT_PHONE_REGION: ${NEXTCLOUD_CONFIG_DEFAULT_PHONE_REGION:-US}
+      NEXTCLOUD_CONFIG_SKELETONDIRECTORY: ${NEXTCLOUD_CONFIG_SKELETONDIRECTORY:-core/skeleton}
+      NEXTCLOUD_CONFIG_WORKSPACE_AVAILABLE: ${NEXTCLOUD_CONFIG_WORKSPACE_AVAILABLE:-1}
+    labels:
+      traefik.enable: true
+      # ROUTERS
+      traefik.http.routers.cloud-app.tls: true
+      traefik.http.routers.cloud-app.tls.certresolver: ${ENV}
+      traefik.http.routers.cloud-app.rule: "Host(`${NEXTCLOUD_ALIAS}.${DOMAIN}`)"
+      traefik.http.routers.cloud-app.middlewares: "cloud-app-headers,cloud-app-redirectregex"
+      # MIDDLEWARES headers
+      traefik.http.middlewares.cloud-app-headers.headers.customFrameOptionsValue: "ALLOW-FROM ${NEXTCLOUD_PROTOCOL}://${NEXTCLOUD_ALIAS}.${DOMAIN}"
+      traefik.http.middlewares.cloud-app-headers.headers.customresponseheaders.X-Frame-Options: "SAMEORIGIN"
+      traefik.http.middlewares.cloud-app-headers.headers.contentSecurityPolicy: "frame-ancestors 'self' ${NEXTCLOUD_ALIAS}.${DOMAIN}"
+      traefik.http.middlewares.cloud-app-headers.headers.stsSeconds: "15552000"
+      traefik.http.middlewares.cloud-app-headers.headers.stsPreload: true
+      # MIDDLEWARES redirectregex
+      traefik.http.middlewares.cloud-app-redirectregex.redirectregex.permanent: true
+      traefik.http.middlewares.cloud-app-redirectregex.redirectregex.regex: "${NEXTCLOUD_PROTOCOL}://(.*)/.well-known/(card|cal)dav"
+      traefik.http.middlewares.cloud-app-redirectregex.redirectregex.replacement: "${NEXTCLOUD_PROTOCOL}://$${1}/remote.php/dav/"
 
 
 ############################
@@ -327,14 +483,21 @@ services:
       - $WORDPRESS_PROFILE_NAME
     image: wordpress:${WORDPRESS_VERSION}
     container_name: wordpress--${WORDPRESS_VERSION}
-    restart: always
+    restart: unless-stopped
     networks:
       - nw-traefik
     dns:
       - 1.1.1.1
       - 1.0.0.1
     depends_on:
-      - db-app
+      db:
+        condition: service_healthy
+      in-memory-db:
+        condition: service_healthy
+    healthcheck:
+      test: curl -f http://localhost
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
     volumes:
       - $DATA_PATH/homepage:/var/www/html
     environment:
@@ -353,85 +516,6 @@ services:
       traefik.http.routers.homepage.rule: "Host(`${DOMAIN}`) || Host(`${WORDPRESS_ALIAS}.${DOMAIN}`)"
 
 
-###########################
-######## cloud-app ########
-###########################
-  cloud-app:
-    profiles:
-      - $NEXTCLOUD_PROFILE_NAME
-    image: nextcloud:${NEXTCLOUD_VERSION}
-    container_name: nextcloud--${NEXTCLOUD_VERSION}
-    restart: always
-    command: /bin/bash -c '${NEXTCLOUD_STARTUP_CMD}'
-    hostname: ${NEXTCLOUD_ALIAS}.${DOMAIN}
-    networks:
-      - nw-traefik
-    dns:
-      - 1.1.1.1
-      - 1.0.0.1
-    depends_on:
-      - in-memory-db
-    volumes:
-      - $DATA_PATH/cloud-app/html:/var/www/html
-      - $DATA_PATH/cloud-app/custom_apps:/var/www/html/custom_apps
-      - $DATA_PATH/cloud-app/config:/var/www/html/config
-      - $DATA_PATH/cloud-app/data:/var/www/html/data
-      - ./config/nextcloud/before-starting:/docker-entrypoint-hooks.d/before-starting
-    environment:
-      # STATIC
-      MYSQL_HOST: db
-      REDIS_HOST: in-memory-db
-      REDIS_HOST_PORT: 6380
-      APACHE_DISABLE_REWRITE_IP: 1
-      TRUSTED_PROXIES: 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
-      # DYNAMIC
-      TZ: ${TZ}
-      PHONE_REGION: ${PHONE_REGION}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      SMTP_SECURE: ${SMTP_SECURE}
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_AUTHTYPE: ${SMTP_AUTHTYPE}
-      SMTP_NAME: ${SMTP_NAME}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
-      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_ALIAS}.${DOMAIN}
-      OVERWRITEHOST: ${NEXTCLOUD_ALIAS}.${DOMAIN}
-      OVERWRITEPROTOCOL: ${NEXTCLOUD_PROTOCOL}
-      MYSQL_DATABASE: ${NEXTCLOUD_DB}
-      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
-      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
-      MAIL_FROM_ADDRESS: ${NEXTCLOUD_MAIL_FROM_ADDRESS}
-      MAIL_DOMAIN: ${NEXTCLOUD_MAIL_DOMAIN}
-      PHP_MEMORY_LIMIT: ${NEXTCLOUD_PHP_MEMORY_LIMIT}
-      PHP_UPLOAD_LIMIT: ${NEXTCLOUD_PHP_UPLOAD_LIMIT}
-      APACHE_BODY_LIMIT: ${NEXTCLOUD_APACHE_BODY_LIMIT}
-      # NEXTCLOUD CONFIG
-      NEXTCLOUD_CONFIG_ACTIVITY: ${NEXTCLOUD_CONFIG_ACTIVITY}
-      NEXTCLOUD_CONFIG_CIRCLES: ${NEXTCLOUD_CONFIG_CIRCLES}
-      NEXTCLOUD_CONFIG_RECOMMENDATIONS: ${NEXTCLOUD_CONFIG_RECOMMENDATIONS}
-      NEXTCLOUD_CONFIG_WORKSPACE: ${NEXTCLOUD_CONFIG_WORKSPACE}
-      NEXTCLOUD_CONFIG_USERSTATUS: ${NEXTCLOUD_CONFIG_USERSTATUS}
-    labels:
-      traefik.enable: true
-      # ROUTERS
-      traefik.http.routers.cloud-app.tls: true
-      traefik.http.routers.cloud-app.tls.certresolver: ${ENV}
-      traefik.http.routers.cloud-app.rule: "Host(`${NEXTCLOUD_ALIAS}.${DOMAIN}`)"
-      traefik.http.routers.cloud-app.middlewares: "cloud-app-headers,cloud-app-redirectregex"
-      # MIDDLEWARES headers
-      traefik.http.middlewares.cloud-app-headers.headers.customFrameOptionsValue: "ALLOW-FROM ${NEXTCLOUD_PROTOCOL}://${NEXTCLOUD_ALIAS}.${DOMAIN}"
-      traefik.http.middlewares.cloud-app-headers.headers.contentSecurityPolicy: "frame-ancestors 'self' ${NEXTCLOUD_ALIAS}.${DOMAIN}"
-      traefik.http.middlewares.cloud-app-headers.headers.stsSeconds: "155520011"
-      traefik.http.middlewares.cloud-app-headers.headers.stsIncludeSubdomains: true
-      traefik.http.middlewares.cloud-app-headers.headers.stsPreload: true
-      traefik.http.middlewares.cloud-app-headers.headers.customresponseheaders.X-Frame-Options: "SAMEORIGIN"
-      # MIDDLEWARES redirectregex
-      traefik.http.middlewares.cloud-app-redirectregex.redirectregex.permanent: true
-      traefik.http.middlewares.cloud-app-redirectregex.redirectregex.regex: "${NEXTCLOUD_PROTOCOL}://(.*)/.well-known/(card|cal)dav"
-      traefik.http.middlewares.cloud-app-redirectregex.redirectregex.replacement: "${NEXTCLOUD_PROTOCOL}://$${1}/remote.php/dav/"
-
-
 ##########################
 ######## plex-app ########
 ##########################
@@ -441,16 +525,21 @@ services:
     image: lscr.io/linuxserver/plex:${PLEX_VERSION}
     container_name: plex--${PLEX_VERSION}
     hostname: ${HOSTNAME}
-    restart: always
+    restart: unless-stopped
     networks:
       - nw-traefik
     dns:
       - 1.1.1.1
       - 1.0.0.1
     ports:
-      - 32400:32400/tcp
+      - ${PLEX_PORT:-32400}:32400/tcp
     depends_on:
-      - cloud-app
+      cloud-app:
+        condition: service_healthy
+    healthcheck:
+      test: curl -f http://localhost:32400/identity
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
     volumes:
       - $DATA_PATH/plex-app/config:/config
       - $DATA_PATH/plex-app/transcode-temp:/transcode
@@ -460,6 +549,8 @@ services:
       VERSION: docker
       # DYNAMIC
       TZ: ${TZ}
+      PUID: ${PUID}
+      PGID: ${PGID}
       PLEX_CLAIM: ${PLEX_CLAIM}
       ADVERTISE_IP: http://${HOST_IP}:32400/
     labels:
@@ -481,16 +572,21 @@ services:
     build: ./config/fastapi/
     image: api-app:latest
     container_name: fastapi
-    restart: always
+    restart: unless-stopped
     networks:
       - nw-traefik
     dns:
       - 1.1.1.1
       - 1.0.0.1
     depends_on:
-      - cloud-app
+      cloud-app:
+        condition: service_healthy
+    healthcheck:
+      test: wget -q --spider http://localhost/health
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
     volumes:
-      - $DATA_PATH/$API_DATA:/code/app
+      - $DATA_PATH/$API_DATA:/code/app/sub_app
     environment:
       # DYNAMIC
       TZ: ${TZ}
