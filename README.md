@@ -1,4 +1,4 @@
-# Home Services Infrastructure as Code (IaC) Deployment
+# Home Services - Infrastructure as Code (IaC) Deployment
 
 This repository contains Infrastructure as Code (IaC) for deploying various home services using Docker Compose. Follow the instructions below to set up and deploy the services on your server.
 
