@@ -139,7 +139,24 @@ http:
 
 #### `/fastapi`
 
-This folder contains the required files to build a FastAPI app. After deployment, place the FastAPI-written app with Python in the volume-mounted folder specified by the `API_DATA` value in the `.env` file.
+This folder contains the required files to build a FastAPI app. Keep it as it is.
+
+After deployment, place your own FastAPI-written app with Python in the volume-mounted folder specified by the `API_DATA` value in the `.env` file. The container will look for a `main.py` file with FastAPI implementation inside the provided path.
+
+Example main.py:
+```python
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    return {"message": "User App is running"}
+```
+Check the logs if the API is not running as expected and try to restart the fastapi container.
+```bash
+docker logs -f fastapi
+```
 
 #### `/mariadb`
 
