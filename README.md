@@ -207,4 +207,4 @@ Feel free to customize this setup according to your preferences and needs.
 
 ---
 ### **Now you can buy me a coffee**
-<a href="https://www.buymeacoffee.com/mshasanoglu"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=☕&slug=mshasanoglu&button_colour=1a3b70&font_colour=ffffff&font_family=Cookie&outline_colour=ffffff&coffee_colour=FFDD00" /></a>
+<a href="https://www.buymeacoffee.com/mshasanoglu"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=☕&slug=mshasanoglu&button_colour=1a3b70&font_colour=ffffff&font_family=Cookie&outline_colour=ffffff" /></a>
