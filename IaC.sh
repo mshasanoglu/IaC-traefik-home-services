@@ -224,7 +224,7 @@ prepare_db() {
 service_handler() {
   logger "PIPELINE" "$1 SERVICES"
   logger ""
-  docker compose $2 --dry-run
+  docker compose $2
 }
 
 # check cloud-app
