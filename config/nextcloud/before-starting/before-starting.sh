@@ -10,6 +10,10 @@ for var in $(compgen -e); do
 				config="config:system:set"
 				appcmd="$app"
 			;;
+			"maintenance_window_start")
+				config="config:system:set"
+				appcmd="$app --type=integer"
+			;;
 			"workspace_available")
 				config="config:app:set"
 				appcmd="text $app"
