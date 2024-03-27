@@ -251,7 +251,7 @@ services:
       - $IOBROKER_PROFILE_NAME
     image: iobroker/iobroker:${IOBROKER_VERSION}
     container_name: iobroker--${IOBROKER_VERSION}
-    hostname: $HOSTNAME
+    hostname: ${HOSTNAME}
     restart: unless-stopped
     network_mode: host
     depends_on:
@@ -387,7 +387,6 @@ services:
     container_name: nextcloud--${NEXTCLOUD_VERSION}
     restart: unless-stopped
     command: /bin/bash -c '${NEXTCLOUD_STARTUP_CMD}'
-    hostname: ${NEXTCLOUD_ALIAS}.${DOMAIN}
     networks:
       - nw-traefik
     dns:
