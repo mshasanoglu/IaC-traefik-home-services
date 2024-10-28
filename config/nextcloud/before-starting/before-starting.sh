@@ -30,6 +30,7 @@ done
 # check db for missing indices
 /var/www/html/occ db:add-missing-indices
 /var/www/html/occ db:convert-filecache-bigint
+/var/www/html/occ maintenance:repair --include-expensive
 
 # clean log file
 rm /var/www/html/data/nextcloud.log

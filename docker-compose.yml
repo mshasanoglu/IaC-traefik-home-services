@@ -42,9 +42,9 @@ services:
       INTERNAL_SUBNET: ${WIREGUARD_INTERNAL_SUBNET}
 
 
-###########################
-######### traefik #########
-###########################
+#############################
+########## traefik ##########
+#############################
   traefik:
     image: traefik:${TRAEFIK_VERSION}
     container_name: traefik--${TRAEFIK_VERSION}
@@ -110,9 +110,9 @@ services:
       traefik.http.middlewares.traefik-auth.basicauth.users: ${BASIC_AUTH_CREDS:-}
 
 
-############################
-######## whoami-app ########
-############################
+#############################
+######## whoami-app #########
+#############################
   whoami-app:
     # A container that exposes an API to show its IP address
     profiles:
@@ -188,9 +188,9 @@ services:
       traefik.http.routers.vs-code-app.rule: "Host(`${VS_CODE_ALIAS}.${DOMAIN}`)"
 
 
-############################
-######## pihole-app ########
-############################
+#############################
+######## pihole-app #########
+#############################
   pihole-app:
     profiles:
       - $PIHOLE_PROFILE_NAME
@@ -242,41 +242,66 @@ services:
 
 
 #############################
-####### smarthome-app #######
+########## matter ###########
 #############################
-  smarthome-app:
+  matter:
     profiles:
-      - $IOBROKER_PROFILE_NAME
-    image: iobroker/iobroker:${IOBROKER_VERSION}
-    container_name: iobroker--${IOBROKER_VERSION}
-    hostname: ${HOSTNAME}
+      - $MATTER_PROFILE_NAME
+    image: ghcr.io/home-assistant-libs/python-matter-server:${MATTER_VERSION}
+    container_name: matter--${MATTER_VERSION}
     restart: unless-stopped
     network_mode: host
     depends_on:
       traefik:
-        condition: service_healthy
+         condition: service_healthy
     healthcheck:
+      test:  curl -f http://localhost:5580
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-30s}
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - $DATA_PATH/matter:/data/
+
+
+#############################
+####### smarthome-app #######
+#############################
+  smarthome-app:
+    profiles:
+      - $HOMEASSISTANT_PROFILE_NAME
+    image: homeassistant/home-assistant:${HOMEASSISTANT_VERSION}
+    container_name: homeassistant--${HOMEASSISTANT_VERSION}
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    depends_on:
+      matter:
+         condition: service_healthy      
+    healthcheck:
+      test: curl -f http://localhost:8123
       interval: ${HEALTHCHECK_INTERVAL:-30s}
       timeout: ${HEALTHCHECK_TIMEOUT:-30s}
     volumes:
-      - $DATA_PATH/smarthome-app:/opt/iobroker
+      - $DATA_PATH/smarthome-app:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
     environment:
       # DYNAMIC
       TZ: ${TZ}
-      IOB_ADMINPORT: ${IOBROKER_ADMINPORT}
     labels:
       traefik.enable: true
       # ROUTERS
       traefik.http.routers.smarthome-app.tls: true
       traefik.http.routers.smarthome-app.tls.certresolver: ${ENV}
-      traefik.http.routers.smarthome-app.rule: "Host(`${IOBROKER_ALIAS}.${DOMAIN}`)"
+      traefik.http.routers.smarthome-app.rule: "Host(`${HOMEASSISTANT_ALIAS}.${DOMAIN}`)"
       # SERVICES
-      traefik.http.services.smarthome-app.loadbalancer.server.port: ${IOBROKER_ADMINPORT}
+      traefik.http.services.smarthome-app.loadbalancer.server.port: ${HOMEASSISTANT_ADMINPORT}
       
 
-############################
-############ db ############
-############################
+#############################
+############ db #############
+#############################
   db:
     profiles:
       - $MYSQL_PROFILE_NAME
@@ -309,9 +334,9 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
 
 
-############################
-########## db-app ##########
-############################
+#############################
+########## db-app ###########
+#############################
   db-app:
     profiles:
       - $MYSQL_PROFILE_NAME
@@ -345,9 +370,9 @@ services:
       TZ: ${TZ}
 
 
-############################
-####### in-memory-db #######
-############################
+#############################
+####### in-memory-db ########
+#############################
   in-memory-db:
     profiles:
       - $MYSQL_PROFILE_NAME
@@ -375,9 +400,9 @@ services:
       TZ: ${TZ}
 
 
-###########################
-######## cloud-app ########
-###########################
+#############################
+######### cloud-app #########
+#############################
   cloud-app:
     profiles:
       - $NEXTCLOUD_PROFILE_NAME
@@ -473,9 +498,9 @@ services:
       traefik.http.middlewares.cloud-app-redirectregex.redirectregex.replacement: "${NEXTCLOUD_PROTOCOL}://$${1}/remote.php/dav/"
 
 
-############################
-######### homepage #########
-############################
+#############################
+######### homepage ##########
+#############################
   homepage:
     profiles:
       - $WORDPRESS_PROFILE_NAME
@@ -514,9 +539,9 @@ services:
       traefik.http.routers.homepage.rule: "Host(`${DOMAIN}`) || Host(`${WORDPRESS_ALIAS}.${DOMAIN}`)"
 
 
-##########################
-######## plex-app ########
-##########################
+#############################
+######### plex-app ##########
+#############################
   plex-app:
     profiles:
       - $PLEX_PROFILE_NAME
@@ -561,9 +586,9 @@ services:
       traefik.http.services.plex-app.loadbalancer.server.port: 32400
 
 
-###########################
-######## api-app ##########
-###########################
+#############################
+########## api-app ##########
+#############################
   api-app:
     profiles:
       - $API_PROFILE_NAME

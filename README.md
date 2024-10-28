@@ -21,7 +21,8 @@ Here is an overview of the included services:
 - **Whoami**
 - **VS Code**
 - **Pi-hole**
-- **Smarthome (ioBroker)**
+- **Matter (Server)**
+- **Smarthome (Home Assistant)**
 - **MySQL Database (MariaDB)**
 - **Homepage (WordPress)**
 - **Cloud (Nextcloud)**

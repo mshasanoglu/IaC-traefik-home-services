@@ -161,8 +161,8 @@ start_pipeline() {
   printf "\n"
   logger "PIPELINE" "STARTING PIPELINE WITH FOLLOWING ARGS"
   logger ""
-  logger "     env: " "$env"
-  logger "  action: " "$action"
+  logger "          env: " "$env"
+  logger "       action: " "$action"
   logger ""
   export ENV=$env
 
@@ -179,7 +179,7 @@ start_pipeline() {
   if [[ -n $profiles ]]; then
     logger "PIPELINE" "GETTING DEPLOYMENT PROFILES"
     logger ""
-    logger "profiles: " "$profiles"
+    logger "     profiles: " "$profiles"
     logger ""
     export COMPOSE_PROFILES=$profiles
   else
@@ -194,7 +194,7 @@ generate_traefik_credentials_to_hash(){
   logger "PIPELINE" "GENERATING HASH CREDENTIALS"
   export BASIC_AUTH_CREDS="$(htpasswd -nb $BASIC_AUTH_USERNAME $BASIC_AUTH_PASSWORD)"
   logger ""
-  logger "    user: " "$BASIC_AUTH_USERNAME"
+  logger "         user: " "$BASIC_AUTH_USERNAME"
   logger ""
 }
 
@@ -206,16 +206,16 @@ prepare_db() {
     logger "ERROR" "Activation of NEXTCLOUD or WORDPRESS require activation of MYSQL!"
     exit 1
   elif [[ $action == "update" && -f "$DATA_PATH/db/init/init.sql" ]]; then
-    logger "      db: " "init.sql found in data path"
+    logger "           db: " "init.sql found in data path"
   else
     mkdir -p $DATA_PATH/db/init
     for file in ./config/mariadb/*
     do
       FILENAME=$(basename $file)
       sed  "s/USER_NAME/${MYSQL_USER}/g ; s/DB_NAME/${!FILENAME}/g ; $ a \ " $file >> $DATA_PATH/db/init/init.sql
-      logger "      db: " "$FILENAME added"
+      logger "           db: " "$FILENAME added"
     done
-    logger "      db: " "init.sql created"
+    logger "           db: " "init.sql created"
   fi
   logger ""
 }
@@ -225,6 +225,20 @@ service_handler() {
   logger "PIPELINE" "$1 SERVICES"
   logger ""
   docker compose $2
+}
+
+# check smarthome-app
+check_smarthome_app() {
+  if ! grep -q "trusted_proxies:" $DATA_PATH/smarthome-app/configuration.yaml; then
+    echo "
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16" >> $DATA_PATH/smarthome-app/configuration.yaml
+    docker compose up -d --wait --no-deps smarthome-app
+  fi
 }
 
 # check cloud-app
@@ -270,7 +284,8 @@ case $action in
     generate_traefik_credentials_to_hash
     [[ $NEXTCLOUD_DEPLOY == "true" || $WORDPRESS_DEPLOY == "true" ]] && prepare_db
     service_handler "STARTING" "up -d --wait"
-    check_cloud_app
+    [[ $HOMEASSISTANT_DEPLOY == true ]] && check_smarthome_app
+    [[ $NEXTCLOUD_DEPLOY == true ]] && check_cloud_app
     ;;
   "update")
     if check_data_path; then
@@ -284,7 +299,8 @@ case $action in
     generate_traefik_credentials_to_hash
     [[ $NEXTCLOUD_DEPLOY == true || $WORDPRESS_DEPLOY == true ]] && prepare_db
     service_handler "UPDATING" "up -d --wait"
-    check_cloud_app
+    [[ $HOMEASSISTANT_DEPLOY == true ]] && check_smarthome_app
+    [[ $NEXTCLOUD_DEPLOY == true ]] && check_cloud_app
     ;;
   "stop")
     start_pipeline
