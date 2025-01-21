@@ -253,7 +253,7 @@ services:
     network_mode: host
     depends_on:
       traefik:
-         condition: service_healthy
+        condition: service_healthy
     healthcheck:
       test:  curl -f http://localhost:5580
       interval: ${HEALTHCHECK_INTERVAL:-30s}
@@ -262,6 +262,54 @@ services:
       - apparmor:unconfined
     volumes:
       - $DATA_PATH/matter:/data/
+
+
+#############################
+########### mqtt ############
+#############################
+  mqtt:
+    profiles:
+      - $MQTT_PROFILE_NAME
+    image: eclipse-mosquitto:${MQTT_VERSION}
+    container_name: mqtt--${MQTT_VERSION}
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      traefik:
+        condition: service_healthy
+    volumes:
+      - $DATA_PATH/mqtt/config:/mosquitto/config
+      - $DATA_PATH/mqtt/data:/mosquitto/data
+      - $DATA_PATH/mqtt/log:/mosquitto/log
+      - ./config/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+
+#############################
+##### growatt-noah-mqtt #####
+#############################
+  growatt-noah-mqtt:
+    profiles:
+      - $GROWATT_NOAH_MQTT_PROFILE_NAME
+    image: ghcr.io/mtrossbach/noah-mqtt:${GROWATT_NOAH_MQTT_VERSION}
+    container_name: growatt-noah-mqtt--${GROWATT_NOAH_MQTT_VERSION}
+    restart: unless-stopped
+    networks:
+      - nw-traefik
+    dns:
+      - 1.1.1.1
+      - 1.0.0.1
+    depends_on:
+      traefik:
+        condition: service_healthy
+      mqtt:
+        condition: service_started
+    environment:
+      # STATIC
+      MQTT_PORT: 1883
+      # DYNAMIC
+      MQTT_HOST: ${HOST_IP}
+      GROWATT_USERNAME: ${GROWATT_NOAH_MQTT_GROWATT_USERNAME}
+      GROWATT_PASSWORD: ${GROWATT_NOAH_MQTT_GROWATT_PASSWORD}
 
 
 #############################
@@ -277,7 +325,7 @@ services:
     network_mode: host
     depends_on:
       matter:
-         condition: service_healthy      
+        condition: service_healthy      
     healthcheck:
       test: curl -f http://localhost:8123
       interval: ${HEALTHCHECK_INTERVAL:-30s}
