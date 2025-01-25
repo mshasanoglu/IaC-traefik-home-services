@@ -261,7 +261,7 @@ services:
     security_opt:
       - apparmor:unconfined
     volumes:
-      - $DATA_PATH/matter:/data/
+      - $DATA_PATH/matter:/data
 
 
 #############################
