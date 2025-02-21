@@ -22,6 +22,9 @@ Here is an overview of the included services:
 - **VS Code**
 - **Pi-hole**
 - **Matter (Server)**
+- **MQTT (Server)**
+- **GROWATT NOAH MQTT (Home Assistant Integration)**
+- **EUFY SECURITY WS (Home Assistant Integration)**
 - **Smarthome (Home Assistant)**
 - **MySQL Database (MariaDB)**
 - **Homepage (WordPress)**

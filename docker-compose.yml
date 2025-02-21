@@ -212,25 +212,21 @@ services:
     environment:
       # DYNAMIC
       TZ: ${TZ}
-      WEBPASSWORD: ${PIHOLE_PASSWORD}
-      PIHOLE_DNS_: ${PIHOLE_DNS}
-      REV_SERVER: ${PIHOLE_REV_SERVER}
-      REV_SERVER_CIDR: ${PIHOLE_REV_SERVER_CIDR}
-      REV_SERVER_TARGET: ${PIHOLE_REV_SERVER_TARGET}
-      REV_SERVER_DOMAIN: ${PIHOLE_REV_SERVER_DOMAIN}
-      DHCP_ACTIVE: ${PIHOLE_DHCP_ACTIVE}
-      DHCP_START: ${PIHOLE_DHCP_START}
-      DHCP_END: ${PIHOLE_DHCP_END}
-      DHCP_ROUTER: ${PIHOLE_DHCP_ROUTER}
-      DHCP_LEASETIME: ${PIHOLE_DHCP_LEASETIME}
-      PIHOLE_DOMAIN: ${PIHOLE_DOMAIN}
-      DHCP_rapid_commit: ${PIHOLE_DHCP_RAPID_COMMIT}
-      DHCP_IPv6: ${PIHOLE_DHCP_IPV6}
-      WEBTHEME: ${PIHOLE_WEBTHEME}
-      INTERFACE: ${PIHOLE_INTERFACE}
-      WEB_PORT: ${PIHOLE_WEB_PORT}
-      DNSMASQ_LISTENING: ${PIHOLE_DNSMASQ_LISTENING}
-      VIRTUAL_HOST: ${PIHOLE_ALIAS}.${DOMAIN}
+      FTLCONF_webserver_api_password: ${PIHOLE_PASSWORD}
+      FTLCONF_dns_upstreams: ${PIHOLE_DNS_UPSTREAMS}
+      FTLCONF_dns_revServers: ${PIHOLE_DNS_REV_SERVERS}
+      FTLCONF_dns_domain: ${PIHOLE_DNS_DOMAIN}
+      FTLCONF_dns_interface: ${PIHOLE_DNS_INTERFACE}
+      FTLCONF_dns_listeningMode: ${PIHOLE_DNS_LISTENING_MODE}
+      FTLCONF_dhcp_active: ${PIHOLE_DHCP_ACTIVE}
+      FTLCONF_dhcp_start: ${PIHOLE_DHCP_START}
+      FTLCONF_dhcp_end: ${PIHOLE_DHCP_END}
+      FTLCONF_dhcp_router: ${PIHOLE_DHCP_ROUTER}
+      FTLCONF_dhcp_leaseTime: ${PIHOLE_DHCP_LEASETIME}
+      FTLCONF_dhcp_rapidCommit: ${PIHOLE_DHCP_RAPID_COMMIT}
+      FTLCONF_dhcp_ipv6: ${PIHOLE_DHCP_IPV6}
+      FTLCONF_webserver_interface_theme: ${PIHOLE_WEB_THEME}
+      FTLCONF_webserver_port: ${PIHOLE_WEB_PORT}
     labels:
       traefik.enable: true
       # ROUTERS
@@ -310,6 +306,30 @@ services:
       MQTT_HOST: ${HOST_IP}
       GROWATT_USERNAME: ${GROWATT_NOAH_MQTT_GROWATT_USERNAME}
       GROWATT_PASSWORD: ${GROWATT_NOAH_MQTT_GROWATT_PASSWORD}
+
+
+#############################
+##### eufy-security-ws ######
+#############################
+  eufy-security-ws:
+    profiles:
+      - $EUFY_SECURITY_WS_PROFILE_NAME
+    image: bropat/eufy-security-ws:${EUFY_SECURITY_WS_VERSION}
+    container_name: eufy-security-ws--${EUFY_SECURITY_WS_VERSION}
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      traefik:
+        condition: service_healthy
+    volumes:
+      - $DATA_PATH/eufy-security-ws/data:/data
+    environment:
+      # DYNAMIC
+      TZ: ${TZ}
+      USERNAME: ${EUFY_SECURITY_WS_USERNAME}
+      PASSWORD: ${EUFY_SECURITY_WS_PASSWORD}
+      COUNTRY: ${EUFY_SECURITY_WS_COUNTRY}
+      TRUSTED_DEVICE_NAME: ${EUFY_SECURITY_WS_TRUSTED_DEVICE_NAME}
 
 
 #############################

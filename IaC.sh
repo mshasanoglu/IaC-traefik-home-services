@@ -116,13 +116,13 @@ env_file=$(< .env)
 new_content=""
 while IFS= read -r line; do
   [[ "$line" == "#"* || ! "$line" =~ [^[:space:]] ]] && continue
-  entry=$(sed "s/[ ][ ].*#.*<=.*//g" <<< "$line")
+  entry=$(sed "s/[ ][ ].*# .*<=.*//g" <<< "$line")
   min_line_length=$([[ ${#entry} -gt $min_line_length ]] && echo ${#entry} || echo $min_line_length)
 done <<< $env_file
 
 while IFS= read -r line; do
-  comment=$(grep -Po "#.*<=.*" <<< "$line")
-  entry=$(sed "s/[ ][ ].*#.*<=.*//g" <<< "$line")
+  comment=$(grep -Po "# .*<=.*" <<< "$line")
+  entry=$(sed "s/[ ][ ].*# .*<=.*//g" <<< "$line")
   space_diff=$(($min_line_length - ${#entry}))
   line_length=$(($space_diff + 5))
   spaces=""
