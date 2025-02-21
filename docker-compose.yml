@@ -233,8 +233,13 @@ services:
       traefik.http.routers.pihole-app.tls: true
       traefik.http.routers.pihole-app.tls.certresolver: ${ENV}
       traefik.http.routers.pihole-app.rule: "Host(`${PIHOLE_ALIAS}.${DOMAIN}`)"
+      traefik.http.routers.pihole-app.middlewares: "pihole-app-redirectregex"
       # SERVICES
       traefik.http.services.pihole-app.loadbalancer.server.port: ${PIHOLE_WEB_PORT}
+      # MIDDLEWARES
+      traefik.http.middlewares.pihole-app-redirectregex.redirectregex.permanent: true
+      traefik.http.middlewares.pihole-app-redirectregex.redirectregex.regex: "^https?://([^/]+)/?$"
+      traefik.http.middlewares.pihole-app-redirectregex.redirectregex.replacement: "https://$${1}/admin"
 
 
 #############################
