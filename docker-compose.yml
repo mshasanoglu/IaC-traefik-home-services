@@ -497,6 +497,7 @@ services:
       test: curl -s http://localhost/status.php | grep '"installed":true' || exit 1
       interval: ${HEALTHCHECK_INTERVAL:-30s}
       timeout: ${HEALTHCHECK_TIMEOUT:-30s}
+      retries: 4
     volumes:
       - $DATA_PATH/cloud-app/html:/var/www/html
       - $DATA_PATH/cloud-app/custom_apps:/var/www/html/custom_apps
