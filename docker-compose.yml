@@ -307,6 +307,7 @@ services:
     environment:
       # STATIC
       MQTT_PORT: 1883
+      GROWATT_API_MODE: app
       # DYNAMIC
       MQTT_HOST: ${HOST_IP}
       GROWATT_USERNAME: ${GROWATT_NOAH_MQTT_GROWATT_USERNAME}
