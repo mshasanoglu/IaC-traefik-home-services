@@ -27,6 +27,18 @@ for var in $(compgen -e); do
 	fi
 done
 
+# set redis config
+/var/www/html/occ config:system:set redis host --value='in-memory-db'
+/var/www/html/occ config:system:set redis port --value=$REDIS_PORT
+/var/www/html/occ config:system:set redis password --value=''
+/var/www/html/occ config:system:set redis dbindex --value=$REDIS_DBINDEX
+/var/www/html/occ config:system:set redis timeout --value=$REDIS_TIMEOUT
+
+# memcached config
+/var/www/html/occ config:system:set memcache.local --value='\OC\Memcache\APCu'
+/var/www/html/occ config:system:set memcache.distributed --value='\OC\Memcache\Redis'
+/var/www/html/occ config:system:set memcache.locking --value='\OC\Memcache\Redis'
+
 # check db for missing indices
 /var/www/html/occ db:add-missing-indices
 /var/www/html/occ db:convert-filecache-bigint

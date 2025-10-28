@@ -483,7 +483,7 @@ services:
     image: nextcloud:${NEXTCLOUD_VERSION}
     container_name: nextcloud--${NEXTCLOUD_VERSION}
     restart: unless-stopped
-    command: /bin/bash -c '${NEXTCLOUD_STARTUP_CMD}'
+    command: /bin/bash -c '${NEXTCLOUD_STARTUP_CMD} && /entrypoint.sh apache2-foreground'
     networks:
       - nw-traefik
     dns:
@@ -511,7 +511,7 @@ services:
     environment:
       # STATIC
       MYSQL_HOST: db
-      REDIS_HOST: in-memory-db
+      #REDIS_HOST: in-memory-db
       APACHE_DISABLE_REWRITE_IP: 1
       TRUSTED_PROXIES: 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
       OVERWRITEWEBROOT: /
@@ -520,7 +520,9 @@ services:
       MYSQL_DATABASE: ${NEXTCLOUD_DB}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      REDIS_HOST_PORT: ${REDIS_HOST_PORT}
+      REDIS_PORT: ${REDIS_HOST_PORT}
+      REDIS_DBINDEX: ${NEXTCLOUD_REDIS_DBINDEX}
+      REDIS_TIMEOUT: ${NEXTCLOUD_REDIS_TIMEOUT}
       SMTP_SECURE: ${SMTP_SECURE}
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
