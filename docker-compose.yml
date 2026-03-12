@@ -57,11 +57,11 @@ services:
       --entrypoints.web.http.redirections.entrypoint.scheme=https
       --entrypoints.websecure.address=:443
       --entrypoints.traefik.address=:${TRAEFIK_WEB_PORT}
-      --certificatesresolvers.prod.acme.email=${SMTP_NAME}
+      --certificatesresolvers.prod.acme.email=${SMTP_USERNAME}
       --certificatesresolvers.prod.acme.storage=/ssl-certs/acme.json
       --certificatesresolvers.prod.acme.caserver=https://acme-v02.api.letsencrypt.org/directory
       --certificatesresolvers.prod.acme.httpchallenge.entrypoint=web
-      --certificatesresolvers.staging.acme.email=${SMTP_NAME}
+      --certificatesresolvers.staging.acme.email=${SMTP_USERNAME}
       --certificatesresolvers.staging.acme.storage=/ssl-certs/acme-staging.json
       --certificatesresolvers.staging.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
       --certificatesresolvers.staging.acme.httpchallenge.entrypoint=web
@@ -282,7 +282,6 @@ services:
       - $DATA_PATH/mqtt/config:/mosquitto/config
       - $DATA_PATH/mqtt/data:/mosquitto/data
       - $DATA_PATH/mqtt/log:/mosquitto/log
-      - ./config/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
 
 
 #############################
@@ -467,7 +466,6 @@ services:
       interval: ${HEALTHCHECK_INTERVAL:-30s}
       timeout: ${HEALTHCHECK_TIMEOUT:-30s}
     volumes:
-      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf
       - $DATA_PATH/in-memory-db:/data
     environment:
       # DYNAMIC
@@ -511,7 +509,6 @@ services:
     environment:
       # STATIC
       MYSQL_HOST: db
-      #REDIS_HOST: in-memory-db
       APACHE_DISABLE_REWRITE_IP: 1
       TRUSTED_PROXIES: 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
       OVERWRITEWEBROOT: /
@@ -527,7 +524,7 @@ services:
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
       SMTP_AUTHTYPE: ${SMTP_AUTHTYPE}
-      SMTP_NAME: ${SMTP_NAME}
+      SMTP_NAME: ${SMTP_USERNAME}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_ALIAS}.${DOMAIN}
       OVERWRITEHOST: ${NEXTCLOUD_ALIAS}.${DOMAIN}
