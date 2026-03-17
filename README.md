@@ -207,7 +207,7 @@ To check the live status of containers, open another terminal and use the follow
     watch -n 1 docker ps
     ```
 
-Feel free to customize this setup according to your preferences and needs.
+Feel free to customize this according to your preferences and needs.
 
 ---
 ### **Now you can buy me a coffee**
